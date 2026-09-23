@@ -77,7 +77,7 @@ describe("grade calculations", () => {
     const r = await s.grades.semesterGpa(sem.id);
     expect(r.actual).toBe(4);
     expect(r.actualCredits).toBe(3);
-    expect(r.projected).toBeCloseTo(4); // B projects to 100%
+    expect(r.projected).toBeCloseTo((4 * 3 + 2.7 * 3) / 6); // B projects to 80% (B-)
     const rep = await s.grades.subjectReport(b.id);
     expect(rep.summary.state).toBe("in_progress");
     expect((await s.grades.cumulativeGpa()).totalCredits).toBe(6);
