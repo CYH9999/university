@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-ssr
+*.local
+/public/fonts
+/e2e/.tmp
+.DS_Store
+*.log
+src-tauri/target
+src-tauri/gen/schemas
+.vscode/*
+!.vscode/extensions.json
