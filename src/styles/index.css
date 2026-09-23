@@ -1,0 +1,342 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource/ibm-plex-sans-arabic/400.css";
+@import "@fontsource/ibm-plex-sans-arabic/500.css";
+@import "@fontsource/ibm-plex-sans-arabic/600.css";
+@import "@fontsource/ibm-plex-sans-arabic/700.css";
+@import "@fontsource-variable/jetbrains-mono";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens. Colors are RGB triplets so Tailwind opacity modifiers work
+ * (e.g. bg-accent/15). Dark is the default theme; `.light` switches palettes.
+ */
+:root {
+  --bg: 11 13 17;
+  --bg-elev: 17 20 26;
+  --bg-sunken: 8 10 13;
+  --surface: 21 25 32;
+  --surface-2: 28 33 42;
+  --border: 38 44 55;
+  --border-strong: 55 63 78;
+  --fg: 230 234 240;
+  --fg-muted: 154 163 178;
+  --fg-subtle: 104 113 128;
+  --accent: 45 212 191;
+  --accent-fg: 4 24 22;
+  --danger: 248 113 113;
+  --warning: 251 191 36;
+  --success: 74 222 128;
+  --info: 96 165 250;
+  --radius: 10px;
+  color-scheme: dark;
+}
+
+.light {
+  --bg: 246 247 249;
+  --bg-elev: 255 255 255;
+  --bg-sunken: 236 238 242;
+  --surface: 255 255 255;
+  --surface-2: 243 245 248;
+  --border: 223 227 234;
+  --border-strong: 199 205 216;
+  --fg: 20 24 31;
+  --fg-muted: 84 93 108;
+  --fg-subtle: 130 139 153;
+  --accent-fg: 255 255 255;
+  --danger: 220 38 38;
+  --warning: 202 138 4;
+  --success: 22 163 74;
+  --info: 37 99 235;
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-bg: rgb(var(--bg));
+  --color-elev: rgb(var(--bg-elev));
+  --color-sunken: rgb(var(--bg-sunken));
+  --color-surface: rgb(var(--surface));
+  --color-surface-2: rgb(var(--surface-2));
+  --color-border: rgb(var(--border));
+  --color-border-strong: rgb(var(--border-strong));
+  --color-fg: rgb(var(--fg));
+  --color-muted: rgb(var(--fg-muted));
+  --color-subtle: rgb(var(--fg-subtle));
+  --color-accent: rgb(var(--accent));
+  --color-accent-fg: rgb(var(--accent-fg));
+  --color-danger: rgb(var(--danger));
+  --color-warning: rgb(var(--warning));
+  --color-success: rgb(var(--success));
+  --color-info: rgb(var(--info));
+  --font-sans: "Inter Variable", "IBM Plex Sans Arabic", "Segoe UI", system-ui, sans-serif;
+  --font-arabic: "IBM Plex Sans Arabic", "Inter Variable", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", Consolas, "Cascadia Mono", monospace;
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+@layer base {
+  * {
+    border-color: rgb(var(--border));
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    background: rgb(var(--bg));
+    color: rgb(var(--fg));
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  html[dir="rtl"] body {
+    font-family: var(--font-arabic);
+  }
+  ::selection {
+    background: rgb(var(--accent) / 0.3);
+  }
+  :focus-visible {
+    outline: 2px solid rgb(var(--accent) / 0.7);
+    outline-offset: 2px;
+  }
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+  /* Scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--border-strong)) transparent;
+  }
+  code,
+  kbd,
+  pre,
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+  /* Code and commands are always left-to-right, even in Arabic. */
+  pre,
+  code,
+  .ltr {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-lg border border-border bg-surface;
+  }
+  .input-base {
+    @apply h-9 w-full rounded-md border border-border bg-sunken px-3 text-sm text-fg outline-none transition-colors placeholder:text-subtle focus:border-accent/60 focus:ring-2 focus:ring-accent/20 disabled:opacity-60;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-medium text-muted;
+  }
+}
+
+/* Rich text editor content */
+.prose-editor {
+  outline: none;
+  min-height: 100%;
+  line-height: 1.75;
+  font-size: 15px;
+}
+.prose-editor > * + * {
+  margin-top: 0.6em;
+}
+.prose-editor h1 {
+  font-size: 1.7em;
+  font-weight: 700;
+  margin-top: 1.2em;
+}
+.prose-editor h2 {
+  font-size: 1.35em;
+  font-weight: 650;
+  margin-top: 1.1em;
+}
+.prose-editor h3 {
+  font-size: 1.15em;
+  font-weight: 600;
+  margin-top: 1em;
+}
+.prose-editor ul {
+  list-style: disc;
+  padding-inline-start: 1.4em;
+}
+.prose-editor ol {
+  list-style: decimal;
+  padding-inline-start: 1.4em;
+}
+.prose-editor ul[data-type="taskList"] {
+  list-style: none;
+  padding-inline-start: 0.2em;
+}
+.prose-editor ul[data-type="taskList"] li {
+  display: flex;
+  gap: 0.5em;
+  align-items: flex-start;
+}
+.prose-editor ul[data-type="taskList"] li > label {
+  margin-top: 0.3em;
+}
+.prose-editor ul[data-type="taskList"] li[data-checked="true"] > div {
+  text-decoration: line-through;
+  color: rgb(var(--fg-subtle));
+}
+.prose-editor blockquote {
+  border-inline-start: 3px solid rgb(var(--accent) / 0.6);
+  padding-inline-start: 1em;
+  color: rgb(var(--fg-muted));
+}
+.prose-editor code {
+  background: rgb(var(--surface-2));
+  border: 1px solid rgb(var(--border));
+  border-radius: 4px;
+  padding: 0.05em 0.35em;
+  font-size: 0.88em;
+}
+.prose-editor pre {
+  background: rgb(var(--bg-sunken));
+  border: 1px solid rgb(var(--border));
+  border-radius: 8px;
+  padding: 0.9em 1em;
+  overflow-x: auto;
+  font-size: 13px;
+  text-align: left;
+}
+.prose-editor pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+}
+.prose-editor a {
+  color: rgb(var(--accent));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-editor table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+}
+.prose-editor td,
+.prose-editor th {
+  border: 1px solid rgb(var(--border-strong));
+  padding: 6px 8px;
+  vertical-align: top;
+  position: relative;
+}
+.prose-editor th {
+  background: rgb(var(--surface-2));
+  font-weight: 600;
+}
+.prose-editor .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgb(var(--accent) / 0.15);
+  pointer-events: none;
+}
+.prose-editor hr {
+  border-color: rgb(var(--border-strong));
+  margin: 1.5em 0;
+}
+.prose-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: rgb(var(--fg-subtle));
+  pointer-events: none;
+  float: inline-start;
+  height: 0;
+}
+.prose-editor mark {
+  background: rgb(var(--warning) / 0.3);
+  color: inherit;
+  border-radius: 2px;
+}
+
+/* highlight.js tokens (both themes) */
+.hljs-comment,
+.hljs-quote {
+  color: rgb(var(--fg-subtle));
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in {
+  color: #c792ea;
+}
+.light .hljs-keyword,
+.light .hljs-selector-tag,
+.light .hljs-built_in {
+  color: #7c3aed;
+}
+.hljs-string,
+.hljs-attr,
+.hljs-template-tag {
+  color: #a5d6a7;
+}
+.light .hljs-string,
+.light .hljs-attr {
+  color: #15803d;
+}
+.hljs-number,
+.hljs-literal,
+.hljs-variable,
+.hljs-params {
+  color: #f78c6c;
+}
+.light .hljs-number,
+.light .hljs-literal,
+.light .hljs-variable {
+  color: #c2410c;
+}
+.hljs-title,
+.hljs-function,
+.hljs-section {
+  color: #82aaff;
+}
+.light .hljs-title,
+.light .hljs-function {
+  color: #1d4ed8;
+}
+.hljs-meta,
+.hljs-symbol {
+  color: #89ddff;
+}
+
+/* Excalidraw container */
+.whiteboard-host .excalidraw {
+  --color-primary: rgb(var(--accent));
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-in {
+  animation: fade-in 140ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-in {
+    animation: none;
+  }
+  * {
+    transition: none !important;
+  }
+}

@@ -86,6 +86,25 @@ export function createSubjectService(ctx: ServiceContext) {
       };
     },
 
+    /** Counters for subject cards (one query for many subjects). */
+    async cardStats(ids: string[]): Promise<Map<string, { notes: number; files: number; tasks: number; deadlines: number }>> {
+      const out = new Map<string, { notes: number; files: number; tasks: number; deadlines: number }>();
+      if (!ids.length) return out;
+      const ph = ids.map(() => "?").join(",");
+      const t = today(ctx);
+      const rows = await ctx.db.query<{ id: string; notes: number; files: number; tasks: number; deadlines: number }>(
+        `SELECT s.id,
+           (SELECT COUNT(*) FROM notes n WHERE n.subject_id = s.id AND n.archived = 0) AS notes,
+           (SELECT COUNT(*) FROM files f WHERE f.trashed_at IS NULL AND (f.subject_id = s.id OR f.id IN (SELECT file_id FROM file_links WHERE entity_type='subject' AND entity_id = s.id))) AS files,
+           (SELECT COUNT(*) FROM tasks k WHERE k.subject_id = s.id AND k.status NOT IN ('completed','cancelled')) AS tasks,
+           (SELECT COUNT(*) FROM deadlines d WHERE d.subject_id = s.id AND d.status NOT IN ('completed','submitted','cancelled') AND d.due_date >= ?) AS deadlines
+         FROM subjects s WHERE s.id IN (${ph})`,
+        [t, ...ids],
+      );
+      for (const r of rows) out.set(r.id, { notes: r.notes, files: r.files, tasks: r.tasks, deadlines: r.deadlines });
+      return out;
+    },
+
     attendance: (subjectId: string) => repos.attendance.list({ where: ["t.subject_id = ?"], params: [subjectId] }),
 
     /** Records attendance for a date (one record per subject/date/session; updates if present). */

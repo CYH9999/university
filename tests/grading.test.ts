@@ -83,3 +83,16 @@ describe("grade calculations", () => {
     expect((await s.grades.cumulativeGpa()).totalCredits).toBe(6);
   });
 });
+
+import { diffLines } from "../src/core/utils/diff";
+describe("diff", () => {
+  it("computes line differences", () => {
+    const d = diffLines("a\nb\nc", "a\nc\nd");
+    expect(d).toEqual([
+      { type: "same", text: "a" },
+      { type: "del", text: "b" },
+      { type: "same", text: "c" },
+      { type: "add", text: "d" },
+    ]);
+  });
+});
