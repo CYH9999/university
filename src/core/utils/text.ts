@@ -91,6 +91,7 @@ export function countWords(s: string): number {
 /** Makes a string safe to use as a single file/folder name (mirrors the Rust sanitizer). */
 export function safeFileName(name: string, fallback = "untitled"): string {
   let s = name
+    // eslint-disable-next-line no-control-regex -- control characters are intentionally stripped from file names
     .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_")
     .trim()
     .replace(/[. ]+$/g, "")
