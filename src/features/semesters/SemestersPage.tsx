@@ -18,6 +18,7 @@ import { useNewParam } from "@/lib/hooks";
 import { fmtDate, fmtNumber } from "@/lib/format";
 import { errorMessage } from "@/lib/errors";
 import type { Semester } from "@/core/model/types";
+import { scaleName } from "@/lib/grading";
 
 const STATUS_TONE = { upcoming: "info", active: "success", completed: "neutral", archived: "neutral" } as const;
 
@@ -182,7 +183,7 @@ export function ScaleSelect({ value, onChange }: { value: string | null; onChang
       <option value="">{t("grades.defaultScale")}</option>
       {data.map((sc) => (
         <option key={sc.id} value={sc.id}>
-          {sc.name}
+          {scaleName(sc.name)}
         </option>
       ))}
     </select>

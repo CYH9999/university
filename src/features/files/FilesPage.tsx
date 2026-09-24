@@ -38,10 +38,9 @@ import { useServices } from "@/app/services";
 import { useQ, invalidateAll } from "@/app/query";
 import { confirm, promptText } from "@/app/confirm";
 import { dialogs, openApi } from "@/platform/tauri";
-import { errorMessage } from "@/lib/errors";
+import { errorMessage, fileFailureMessage } from "@/lib/errors";
 import { useDebounced, useSubjectMap } from "@/lib/hooks";
-import { formatBytes } from "@/core/utils/text";
-import { fmtDateTime, fmtRelative } from "@/lib/format";
+import { fmtDateTime, fmtRelative, fmtBytes } from "@/lib/format";
 import { WORKSPACE_ROOTS, type MergedEntry } from "@/core/services/files";
 import type { FileRecord } from "@/core/model/types";
 import { cn } from "@/lib/cn";
@@ -86,7 +85,7 @@ export function FilesPage() {
     if (r) {
       if (r.imported.length) toast.success(t("files.importedTo", { count: r.imported.length, folder: dest }));
       if (r.linkedExisting.length) toast.info(t("files.duplicateSkipped", { count: r.linkedExisting.length }));
-      for (const f of r.failed) toast.error(`${f.name}: ${f.error ?? ""}`);
+      for (const f of r.failed) toast.error(fileFailureMessage(f));
     }
   }, [dir, s, t]);
 
@@ -153,7 +152,7 @@ export function FilesPage() {
       <PageHeader
         icon={<FolderOpen />}
         title={t("nav.files")}
-        description={stats ? t("files.summary", { count: stats.count, size: formatBytes(stats.bytes) }) : undefined}
+        description={stats ? t("files.summary", { count: stats.count, size: fmtBytes(stats.bytes) }) : undefined}
         actions={
           <>
             <Button onClick={() => openApi.reveal(dir).catch((e) => toast.error(errorMessage(e)))}>
@@ -330,7 +329,7 @@ function FileTable({
                 </button>
               </td>
               <td className="px-3 py-2">{e.file?.subjectId && <SubjectChip subject={subjects.get(e.file.subjectId)} />}</td>
-              <td className="px-3 py-2 text-xs tabular-nums text-muted">{e.isDir ? "—" : formatBytes(e.size)}</td>
+              <td className="px-3 py-2 text-xs tabular-nums text-muted">{e.isDir ? "—" : fmtBytes(e.size)}</td>
               <td className="px-3 py-2 text-xs text-muted">{e.modified ? fmtRelative(new Date(e.modified).toISOString()) : ""}</td>
               <td className="px-1">
                 <Menu>
@@ -462,7 +461,7 @@ function FileDetails({ file, onClose }: { file: FileRecord | null; onClose: () =
         <dt className="text-muted">{t("files.path")}</dt>
         <dd className="break-all font-mono" dir="ltr">{file.relPath}</dd>
         <dt className="text-muted">{t("files.size")}</dt>
-        <dd>{formatBytes(file.size)}</dd>
+        <dd>{fmtBytes(file.size)}</dd>
         <dt className="text-muted">{t("files.type")}</dt>
         <dd className="uppercase">{file.ext || "—"}</dd>
         <dt className="text-muted">SHA-256</dt>

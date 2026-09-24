@@ -15,6 +15,7 @@ import { fmtNumber } from "@/lib/format";
 import { gradeTemplate, GRADE_TEMPLATES } from "@/core/templates";
 import type { GradeItem } from "@/core/model/types";
 import { cn } from "@/lib/cn";
+import { gradeLabel } from "@/lib/grading";
 
 /** Inline, spreadsheet-like grade editor for one subject with live calculations. */
 export function GradeEditor({ subjectId }: { subjectId: string }) {
@@ -59,11 +60,11 @@ export function GradeEditor({ subjectId }: { subjectId: string }) {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat label={t("grades.current")} value={pct(sum.currentPercent)} hint={t("grades.currentHint")} />
           <Stat label={t("grades.earned")} value={pct(sum.earnedPercent)} hint={t("grades.earnedHint")} />
-          <Stat label={t("grades.projected")} value={pct(sum.projectedPercent)} hint={report?.projectedLetter ?? t("grades.estimate")} tone="accent" />
+          <Stat label={t("grades.projected")} value={pct(sum.projectedPercent)} hint={report?.projectedLetter ? gradeLabel(report.projectedLetter) : t("grades.estimate")} tone="accent" />
           <Stat
             label={t("grades.final")}
             value={pct(sum.finalPercent)}
-            hint={sum.state === "final" ? report?.letter ?? "" : t(`grades.states.${sum.state}`)}
+            hint={sum.state === "final" ? gradeLabel(report?.letter) : t(`grades.states.${sum.state}`)}
             tone={sum.state === "final" ? "success" : undefined}
           />
         </div>

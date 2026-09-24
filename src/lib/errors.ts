@@ -7,7 +7,9 @@ export function errorMessage(e: unknown): string {
   const t = i18n.t.bind(i18n);
   if (e instanceof ValidationError) {
     const first = e.issues[0];
-    const field = first?.path ? t(`fields.${first.path}`, { defaultValue: first.path }) : "";
+    // Nested paths ("links.0.url") are reported against their top-level field.
+    const path = first?.path?.split(".")[0] ?? "";
+    const field = path ? t(`fields.${path}`) : "";
     return field ? `${field}: ${t(first.message)}` : t(first?.message ?? "validation.invalid");
   }
   const code = (e as { code?: string })?.code;
@@ -27,6 +29,17 @@ export function fieldErrors(e: unknown): Record<string, string> {
   const t = i18n.t.bind(i18n);
   if (!(e instanceof ValidationError)) return {};
   const out: Record<string, string> = {};
-  for (const i of e.issues) if (!out[i.path]) out[i.path] = t(i.message);
+  for (const i of e.issues) {
+    const path = i.path.split(".")[0];
+    if (!out[path]) out[path] = t(i.message);
+  }
   return out;
+}
+
+/** "report.pdf: The file is open in another program" for a per-file import failure. */
+export function fileFailureMessage(f: { name: string; errorCode?: string | null; error?: string | null }): string {
+  const t = i18n.t.bind(i18n);
+  const key = f.errorCode ? `errors.${f.errorCode.replace(/\./g, "_")}` : null;
+  const reason = key && i18n.exists(key) ? t(key) : f.error ? `${t("errors.generic")} (${f.error})` : t("errors.generic");
+  return `${f.name}: ${reason}`;
 }

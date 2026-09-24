@@ -75,7 +75,7 @@ export function Onboarding() {
       </Button>
       <div className="flex items-center gap-2">
         {skip && (
-          <Button variant="ghost" onClick={skip}>
+          <Button variant="ghost" onClick={skip} data-testid="onboarding-skip">
             {t("onboarding.skip")}
           </Button>
         )}
@@ -86,7 +86,7 @@ export function Onboarding() {
 
   if (step === 3)
     return (
-      <OnboardingFrame step={3} total={TOTAL} footer={footer(<Button variant="primary" onClick={next}>{t("common.continue")} <ArrowRight className="rtl:rotate-180" /></Button>)}>
+      <OnboardingFrame step={3} total={TOTAL} footer={footer(<Button variant="primary" onClick={next} data-testid="onboarding-next">{t("common.continue")} <ArrowRight className="rtl:rotate-180" /></Button>)}>
         <div className="mb-6 flex items-center gap-3 rounded-lg border border-success/30 bg-success/8 p-3 text-sm">
           <FolderCheck className="size-5 shrink-0 text-success" />
           <div className="min-w-0">
@@ -120,7 +120,7 @@ export function Onboarding() {
 
   if (step === 4)
     return (
-      <OnboardingFrame step={4} total={TOTAL} footer={footer(<Button variant="primary" onClick={next}>{t("common.continue")} <ArrowRight className="rtl:rotate-180" /></Button>)}>
+      <OnboardingFrame step={4} total={TOTAL} footer={footer(<Button variant="primary" onClick={next} data-testid="onboarding-next">{t("common.continue")} <ArrowRight className="rtl:rotate-180" /></Button>)}>
         <h1 className="text-2xl font-semibold">{t("onboarding.themeTitle")}</h1>
         <p className="mt-2 text-sm text-muted">{t("onboarding.themeLead")}</p>
         <div className="mt-6 grid grid-cols-3 gap-3">
@@ -159,7 +159,7 @@ export function Onboarding() {
 
   if (step === 5)
     return (
-      <OnboardingFrame step={5} total={TOTAL} footer={footer(<Button variant="primary" loading={busy} onClick={saveSemester}>{t("common.continue")} <ArrowRight className="rtl:rotate-180" /></Button>, next)}>
+      <OnboardingFrame step={5} total={TOTAL} footer={footer(<Button variant="primary" loading={busy} onClick={saveSemester} data-testid="onboarding-next">{t("common.continue")} <ArrowRight className="rtl:rotate-180" /></Button>, next)}>
         <h1 className="text-2xl font-semibold">{t("onboarding.semesterTitle")}</h1>
         <p className="mb-6 mt-2 text-sm text-muted">{t("onboarding.semesterLead")}</p>
         <RecordForm
@@ -168,7 +168,7 @@ export function Onboarding() {
           onChange={(p) => setSemester((x) => ({ ...x, ...p }))}
           fields={[
             { name: "name", kind: "text", required: true, placeholder: "onboarding.semesterPlaceholder", autoFocus: true },
-            { name: "academicYear", kind: "text", placeholder: "2026-2027" },
+            { name: "academicYear", kind: "text", placeholder: "onboarding.academicYearPlaceholder" },
             { name: "type", kind: "enum", enum: "semesterType", required: true },
             { name: "status", kind: "enum", enum: "semesterStatus", required: true },
             { name: "startDate", kind: "date" },
@@ -180,7 +180,7 @@ export function Onboarding() {
 
   if (step === 6)
     return (
-      <OnboardingFrame step={6} total={TOTAL} footer={footer(<Button variant="primary" loading={busy} onClick={saveSubjects}>{t("common.continue")} <ArrowRight className="rtl:rotate-180" /></Button>, next)}>
+      <OnboardingFrame step={6} total={TOTAL} footer={footer(<Button variant="primary" loading={busy} onClick={saveSubjects} data-testid="onboarding-next">{t("common.continue")} <ArrowRight className="rtl:rotate-180" /></Button>, next)}>
         <h1 className="text-2xl font-semibold">{t("onboarding.subjectsTitle")}</h1>
         <p className="mb-6 mt-2 text-sm text-muted">{t("onboarding.subjectsLead")}</p>
         <div className="space-y-2">

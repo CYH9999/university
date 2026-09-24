@@ -436,7 +436,7 @@ function TimetableEditor({ editor, entries, semesterId }: { editor: ReturnType<t
       {(e) =>
         e && (
           <Link to={`/subjects/${e.subjectId}`} className="text-sm text-accent hover:underline">
-            {t("timetable.openSubject")} → {subjects.get(e.subjectId)?.name}
+            {t("timetable.openSubject")}: {subjects.get(e.subjectId)?.name}
           </Link>
         )
       }

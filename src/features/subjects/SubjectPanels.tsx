@@ -13,7 +13,7 @@ import { Badge, ProgressBar, Segmented } from "@/components/ui/controls";
 import { EmptyState, Stat } from "@/components/ui/misc";
 import { NativeSelect } from "@/components/ui/input";
 import { dialogs, openApi } from "@/platform/tauri";
-import { errorMessage } from "@/lib/errors";
+import { errorMessage, fileFailureMessage } from "@/lib/errors";
 import { fmtDate, fmtNumber } from "@/lib/format";
 import { toDateKey } from "@/core/utils/dates";
 import { SUBJECT_SUBFOLDERS, type SubjectFolderKind } from "@/core/services/files";
@@ -107,7 +107,7 @@ export function SubjectFilesPanel({ subject }: { subject: Subject }) {
       const r = await s.files.importFiles({ sources: picked, destRel: dest, subjectId: subject.id, link: { entityType: "subject", entityId: subject.id } });
       if (r.imported.length) toast.success(t("files.importedTo", { count: r.imported.length, folder: dest }));
       if (r.linkedExisting.length) toast.info(t("files.linkedExisting", { count: r.linkedExisting.length }));
-      for (const f of r.failed) toast.error(`${f.name}: ${f.error ?? ""}`);
+      for (const f of r.failed) toast.error(fileFailureMessage(f));
       await invalidateAll();
     } catch (e) {
       toast.error(errorMessage(e));

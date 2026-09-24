@@ -99,7 +99,7 @@ export function CommandPalette() {
                     );
                   })}
                   <Command.Item value="__all" onSelect={() => go(`/search?q=${encodeURIComponent(q)}`)} className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm text-accent aria-selected:bg-surface-2">
-                    <CornerDownLeft className="size-4" /> {t("search.seeAll")}
+                    <CornerDownLeft className="size-4 rtl:-scale-x-100" /> {t("search.seeAll")}
                   </Command.Item>
                 </Command.Group>
               )}

@@ -55,3 +55,13 @@ export function fmtMinutes(min: number): string {
 export function fmtTime(t: string | null | undefined): string {
   return t ?? "";
 }
+
+const BYTE_UNITS = ["bytes", "kb", "mb", "gb", "tb"] as const;
+
+/** File size with localized units ("2.4 MB" / "2.4 م.ب"). */
+export function fmtBytes(bytes: number | null | undefined): string {
+  const t = i18n.t.bind(i18n);
+  if (!bytes || !Number.isFinite(bytes) || bytes <= 0) return `${fmtNumber(0)} ${t("units.bytes")}`;
+  const i = Math.min(BYTE_UNITS.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+  return `${fmtNumber(bytes / 1024 ** i, i === 0 ? 0 : 1)} ${t(`units.${BYTE_UNITS[i]}`)}`;
+}

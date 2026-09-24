@@ -145,7 +145,7 @@ export function EntityDrawer<T extends { id: string }>({
           <Button variant="ghost" onClick={() => void requestClose()}>
             {t("common.cancel")}
           </Button>
-          <Button variant="primary" loading={saving} onClick={save}>
+          <Button variant="primary" loading={saving} onClick={save} data-testid="drawer-save">
             {t("common.save")} <Kbd>Ctrl+S</Kbd>
           </Button>
         </>

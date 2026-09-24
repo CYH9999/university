@@ -54,7 +54,7 @@ function RouteError() {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-10 text-center">
       <AlertOctagon className="size-10 text-danger" />
-      <h1 className="text-lg font-semibold">{t("errors.pageCrashed")}</h1>
+      <h1 className="text-lg font-semibold" data-testid="page-crashed">{t("errors.pageCrashed")}</h1>
       <p className="max-w-md text-sm text-muted">{t("errors.pageCrashedHint")}</p>
       <pre className="max-w-xl overflow-auto rounded-md border border-border bg-sunken p-3 text-start text-xs text-danger">{err instanceof Error ? err.message : String(err)}</pre>
       <Button asChild variant="primary">

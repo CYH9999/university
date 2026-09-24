@@ -13,7 +13,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
-    "check:i18n": "vitest run tests/i18n.test.ts",
+    "check:i18n": "vitest run tests/i18n.test.ts tests/i18n-dom.test.ts",
+    "i18n:keys": "node scripts/i18n-keys.mjs",
+    "i18n:audit": "node scripts/i18n-audit.mjs",
     "assets": "node scripts/copy-excalidraw-assets.mjs",
     "tauri": "tauri",
     "postinstall": "node scripts/copy-excalidraw-assets.mjs"

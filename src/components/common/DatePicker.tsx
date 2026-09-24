@@ -58,14 +58,50 @@ export function DatePicker({ value, onChange, placeholder, className, clearable 
   );
 }
 
+/** Parses "9", "930", "9:30" or "09:30" into "09:30"; null when empty, undefined when invalid. */
+export function normalizeTime(raw: string): string | null | undefined {
+  const s = raw.trim();
+  if (!s) return null;
+  const m = /^(\d{1,2})(?::?(\d{2}))?$/.exec(s);
+  if (!m) return undefined;
+  const h = Number(m[1]);
+  const min = m[2] ? Number(m[2]) : 0;
+  if (h > 23 || min > 59) return undefined;
+  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+}
+
+/**
+ * 24-hour time field. The native time input follows the operating system's locale (12-hour
+ * "AM/PM" on many systems) instead of the app language, so a plain HH:MM field is used.
+ */
 export function TimeInput({ value, onChange, className, id }: { value: string | null | undefined; onChange: (v: string | null) => void; className?: string; id?: string }) {
+  const { t } = useTranslation();
+  const [text, setText] = React.useState(value ?? "");
+  React.useEffect(() => setText(value ?? ""), [value]);
+  const commit = (raw: string) => {
+    const v = normalizeTime(raw);
+    if (v === undefined) return setText(value ?? "");
+    setText(v ?? "");
+    if (v !== (value ?? null)) onChange(v);
+  };
   return (
     <input
       id={id}
-      type="time"
-      className={cn("input-base ltr", className)}
-      value={value ?? ""}
-      onChange={(e) => onChange(e.target.value || null)}
+      type="text"
+      inputMode="numeric"
+      dir="ltr"
+      maxLength={5}
+      placeholder="--:--"
+      aria-label={id ? undefined : t("fields.time")}
+      className={cn("input-base text-start tabular-nums", className)}
+      value={text}
+      onChange={(e) => {
+        setText(e.target.value);
+        // A complete HH:MM value is applied immediately so saving without leaving the field works.
+        if (/^\d{2}:\d{2}$/.test(e.target.value) && normalizeTime(e.target.value)) onChange(normalizeTime(e.target.value) ?? null);
+      }}
+      onBlur={(e) => commit(e.target.value)}
+      onKeyDown={(e) => e.key === "Enter" && commit(e.currentTarget.value)}
     />
   );
 }

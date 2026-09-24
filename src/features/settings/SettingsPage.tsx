@@ -16,10 +16,10 @@ import { confirm, promptText } from "@/app/confirm";
 import { applyLanguage, type Lang } from "@/i18n";
 import { workspaceApi, logApi, desktopNotify, type IntegrityReport } from "@/platform/tauri";
 import { errorMessage } from "@/lib/errors";
-import { formatBytes } from "@/core/utils/text";
-import { fmtDateTime } from "@/lib/format";
+import { fmtDateTime, fmtBytes } from "@/lib/format";
 import { CURRENCIES, NOTIFICATION_CATEGORIES } from "@/core/model/enums";
 import type { GradingScale } from "@/core/model/types";
+import { scaleName, gradeLabel } from "@/lib/grading";
 
 const TABS = ["general", "workspace", "notifications", "grading", "tags", "maintenance", "privacy"] as const;
 
@@ -142,9 +142,9 @@ function WorkspaceTab() {
             <div className="break-all rounded-md border border-border bg-sunken px-3 py-2 font-mono text-xs" dir="ltr" data-testid="workspace-path">{info?.path}</div>
           </div>
           <div className="grid grid-cols-2 gap-3 text-xs text-muted sm:grid-cols-3">
-            <div>{t("settings.databaseSize")}: <span className="text-fg">{formatBytes(info?.dbSize ?? 0)}</span></div>
+            <div>{t("settings.databaseSize")}: <span className="text-fg">{fmtBytes(info?.dbSize ?? 0)}</span></div>
             <div>{t("settings.created")}: <span className="text-fg">{fmtDateTime(info?.manifest?.createdAt)}</span></div>
-            <div>ID: <span className="font-mono text-fg">{info?.manifest?.id.slice(0, 8)}</span></div>
+            <div>{t("settings.workspaceId")}: <span className="font-mono text-fg" dir="ltr">{info?.manifest?.id.slice(0, 8)}</span></div>
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
             <Button onClick={() => workspaceApi.reveal().catch((e) => toast.error(errorMessage(e)))}><FolderOpen /> {t("settings.openInExplorer")}</Button>
@@ -214,7 +214,7 @@ function Notifications() {
             <NativeSelect value={String(prefs.lectureLeadMinutes)} onChange={(e) => update({ notifications: { lectureLeadMinutes: Number(e.target.value) } })} options={[5, 10, 15, 30, 60].map((m) => ({ value: String(m), label: t("reminders.minutes", { count: m }) }))} />
           </Field>
           <Field label={t("settings.backupReminder")}>
-            <NativeSelect value={String(prefs.backupReminderDays)} onChange={(e) => update({ notifications: { backupReminderDays: Number(e.target.value) } })} options={[0, 3, 7, 14, 30].map((d) => ({ value: String(d), label: d ? t("reminders.days", { count: d }) : t("settings.off") }))} />
+            <NativeSelect value={String(prefs.backupReminderDays)} onChange={(e) => update({ notifications: { backupReminderDays: Number(e.target.value) } })} options={[0, 3, 7, 14, 30].map((d) => ({ value: String(d), label: d ? t("time.days", { count: d }) : t("settings.off") }))} />
           </Field>
           <Field label={t("settings.goalWarning")}>
             <NativeSelect value={String(prefs.goalWarningDays)} onChange={(e) => update({ notifications: { goalWarningDays: Number(e.target.value) } })} options={[1, 3, 7, 14].map((d) => ({ value: String(d), label: t("reminders.days", { count: d }) }))} />
@@ -251,7 +251,7 @@ function Grading() {
         {scales.map((sc) => (
           <Card key={sc.id} className="p-4">
             <div className="flex items-center gap-2">
-              <span className="font-medium">{sc.name}</span>
+              <span className="font-medium">{scaleName(sc.name)}</span>
               <Badge>{t(`enums.scaleKind.${sc.kind}`)}</Badge>
               {sc.isDefault && <Badge tone="accent"><Star className="size-3" /> {t("settings.default")}</Badge>}
               <div className="ms-auto flex gap-1">
@@ -263,7 +263,7 @@ function Grading() {
               </div>
             </div>
             <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
-              {sc.bands.map((b, i) => <span key={i} className="rounded border border-border px-1.5 py-0.5"><span className="text-muted">≥{b.min}%</span> {b.label}{sc.kind !== "percentage" ? ` · ${b.points}` : ""}</span>)}
+              {sc.bands.map((b, i) => <span key={i} className="rounded border border-border px-1.5 py-0.5"><span className="text-muted">≥{b.min}%</span> {gradeLabel(b.label)}{sc.kind !== "percentage" ? ` · ${b.points}` : ""}</span>)}
             </div>
             <div className="mt-1 text-[11px] text-subtle">{t("settings.passMark", { n: sc.passMark })}</div>
           </Card>
@@ -382,7 +382,7 @@ function Privacy() {
       <ul className="mt-3 list-disc space-y-1.5 ps-5 text-sm text-muted">
         {["privacy1", "privacy2", "privacy3", "privacy4", "privacy5"].map((k) => <li key={k}>{t(`settings.${k}`)}</li>)}
       </ul>
-      <p className="mt-4 text-xs text-subtle">UniOS 1.0.0</p>
+      <p className="mt-4 text-xs text-subtle">{t("settings.version", { version: __APP_VERSION__ })}</p>
     </Card>
   );
 }

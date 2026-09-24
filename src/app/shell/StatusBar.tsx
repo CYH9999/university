@@ -7,8 +7,7 @@ import { useSettings } from "@/app/settings";
 import { useSaveStatus, saveState } from "@/app/saveStatus";
 import { workspaceApi } from "@/platform/tauri";
 import { errorMessage } from "@/lib/errors";
-import { formatBytes } from "@/core/utils/text";
-import { fmtRelative } from "@/lib/format";
+import { fmtRelative, fmtBytes } from "@/lib/format";
 import { Tip } from "@/components/ui/controls";
 import { cn } from "@/lib/cn";
 
@@ -35,7 +34,7 @@ export function StatusBar() {
         <span className="flex shrink-0 items-center gap-1.5">
           <Database className={cn("size-3.5", info?.dbOpen ? "text-success" : "text-danger")} />
           {info?.dbOpen ? t("status.dbOk") : t("status.dbClosed")}
-          {info && <span className="text-subtle">· {formatBytes(info.dbSize)}</span>}
+          {info && <span className="text-subtle">· {fmtBytes(info.dbSize)}</span>}
         </span>
       </Tip>
       <Tip content={backup.lastError ? `${t("status.backupFailed")}: ${backup.lastError}` : t("status.backupHint")}>

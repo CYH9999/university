@@ -115,7 +115,7 @@ export function TopBar() {
           </Button>
         </Tip>
         <Tip content={t("settings.language")}>
-          <Button size="sm" variant="ghost" onClick={toggleLang} aria-label={t("settings.language")}>
+          <Button size="sm" variant="ghost" onClick={toggleLang} aria-label={t("settings.language")} data-testid="lang-toggle">
             <Languages /> <span className="text-xs">{settings.language === "ar" ? "EN" : "ع"}</span>
           </Button>
         </Tip>

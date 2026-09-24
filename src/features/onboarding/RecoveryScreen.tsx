@@ -8,8 +8,7 @@ import { useWorkspace } from "@/app/workspace";
 import { workspaceApi, backupApi, dialogs, type BackupInfo } from "@/platform/tauri";
 import { confirm } from "@/app/confirm";
 import { errorMessage } from "@/lib/errors";
-import { formatBytes } from "@/core/utils/text";
-import { fmtDateTime } from "@/lib/format";
+import { fmtDateTime, fmtBytes } from "@/lib/format";
 
 /**
  * Shown whenever the remembered Workspace cannot be used. Normal usage stays blocked and
@@ -111,7 +110,12 @@ export function RecoveryScreen() {
           <Badge tone="warning">{t(`workspace.status.${check?.status ?? "missing"}`)}</Badge>
         </div>
         <p className="mt-2 text-sm text-muted">{t(`recovery.reason.${check?.status ?? "missing"}`)}</p>
-        {check?.detail && <p className="mt-1 text-xs text-subtle">{check.detail}</p>}
+        {check?.detail && (
+          <details className="mt-2 text-xs text-subtle">
+            <summary className="cursor-pointer select-none">{t("recovery.technicalDetails")}</summary>
+            <p className="mt-1 break-all font-mono" dir="ltr">{check.detail}</p>
+          </details>
+        )}
       </div>
 
       {error && <p className="mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">{error}</p>}
@@ -155,7 +159,7 @@ export function RecoveryScreen() {
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm">{b.manifest ? fmtDateTime(b.manifest.createdAt) : b.fileName}</div>
                     <div className="text-xs text-subtle">
-                      {b.manifest && t(`backup.kind.${b.manifest.kind}`)} · {formatBytes(b.size)}
+                      {b.manifest && t(`backup.kind.${b.manifest.kind}`)} · {fmtBytes(b.size)}
                     </div>
                   </div>
                   <Button size="sm" loading={busy === `restore:${b.path}`} onClick={() => restore(b)}>

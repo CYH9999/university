@@ -9,7 +9,7 @@ import { Tip } from "@/components/ui/controls";
 import { cn } from "@/lib/cn";
 
 export function Sidebar() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const collapsed = useSettings((s) => s.settings.sidebarCollapsed);
   const update = useSettings((s) => s.update);
   const s = useServices();
@@ -62,7 +62,7 @@ export function Sidebar() {
                     )}
                   </NavLink>
                 );
-                return <li key={item.to}>{collapsed ? <Tip content={t(item.label)} side="right">{link}</Tip> : link}</li>;
+                return <li key={item.to}>{collapsed ? <Tip content={t(item.label)} side={i18n.dir() === "rtl" ? "left" : "right"}>{link}</Tip> : link}</li>;
               })}
             </ul>
           </div>

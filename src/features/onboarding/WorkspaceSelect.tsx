@@ -10,8 +10,7 @@ import { applyLanguage } from "@/i18n";
 import { confirm } from "@/app/confirm";
 import { errorMessage } from "@/lib/errors";
 import { useQ } from "@/app/query";
-import { formatBytes } from "@/core/utils/text";
-import { fmtDateTime } from "@/lib/format";
+import { fmtDateTime, fmtBytes } from "@/lib/format";
 import i18n from "@/i18n";
 import { cn } from "@/lib/cn";
 
@@ -76,7 +75,7 @@ export function WorkspaceSelect() {
 
   if (step === 0)
     return (
-      <OnboardingFrame step={0} total={8} footer={<><span /><Button variant="primary" onClick={() => setStep(1)}>{t("onboarding.start")} <ArrowRight className="rtl:rotate-180" /></Button></>}>
+      <OnboardingFrame step={0} total={8} footer={<><span /><Button variant="primary" onClick={() => setStep(1)} data-testid="onboarding-next">{t("onboarding.start")} <ArrowRight className="rtl:rotate-180" /></Button></>}>
         <div className="text-center">
           <img src="/logo.svg" alt="" className="mx-auto size-20" />
           <h1 className="mt-6 text-3xl font-semibold tracking-tight">{t("onboarding.welcomeTitle")}</h1>
@@ -108,7 +107,7 @@ export function WorkspaceSelect() {
             <Button variant="ghost" onClick={() => setStep(0)}>
               <ArrowLeft className="rtl:rotate-180" /> {t("common.back")}
             </Button>
-            <Button variant="primary" onClick={() => setStep(2)}>
+            <Button variant="primary" onClick={() => setStep(2)} data-testid="onboarding-next">
               {t("common.continue")} <ArrowRight className="rtl:rotate-180" />
             </Button>
           </>
@@ -124,7 +123,7 @@ export function WorkspaceSelect() {
             </li>
           ))}
         </ul>
-        <pre className="mt-6 rounded-lg border border-border bg-sunken p-4 text-xs leading-6 text-muted">{`Workspace/
+        <pre dir="ltr" className="mt-6 rounded-lg border border-border bg-sunken p-4 text-xs leading-6 text-muted">{`Workspace/
 ├── AppData/          database.sqlite · settings.json · workspace.json
 ├── Subjects/         ${i18n.t("onboarding.tree.subjects")}
 ├── Projects/         ${i18n.t("onboarding.tree.projects")}
@@ -327,7 +326,7 @@ function PickWorkspace({ onBack }: { onBack?: () => void }) {
           </div>
           {restoreZip.report.manifest && (
             <p className="mt-1 text-xs text-muted">
-              {t(`backup.kind.${restoreZip.report.manifest.kind}`)} · {fmtDateTime(restoreZip.report.manifest.createdAt)} · {formatBytes(restoreZip.report.manifest.totalSize)}
+              {t(`backup.kind.${restoreZip.report.manifest.kind}`)} · {fmtDateTime(restoreZip.report.manifest.createdAt)} · {fmtBytes(restoreZip.report.manifest.totalSize)}
             </p>
           )}
           {restoreZip.report.errors.map((e) => (

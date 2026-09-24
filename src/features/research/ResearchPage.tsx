@@ -14,7 +14,7 @@ import { useServices } from "@/app/services";
 import { useQ, useMut, invalidateAll } from "@/app/query";
 import { useNewParam, useOpenParam, useSubjectMap, useDebounced } from "@/lib/hooks";
 import { dialogs, openApi } from "@/platform/tauri";
-import { errorMessage } from "@/lib/errors";
+import { errorMessage, fileFailureMessage } from "@/lib/errors";
 import type { ResearchResource, FileRecord } from "@/core/model/types";
 import { cn } from "@/lib/cn";
 
@@ -188,7 +188,7 @@ export function useImportResources() {
         if (f) await s.repos.resources.update(r.id, { fileId: f.id });
         else await s.repos.resources.remove(r.id);
         if (f) n++;
-        for (const fail of res.failed) toast.error(`${fail.name}: ${fail.error}`);
+        for (const fail of res.failed) toast.error(fileFailureMessage(fail));
       }
       await invalidateAll();
       toast.success(t("research.imported", { count: n }));

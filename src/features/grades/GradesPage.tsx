@@ -11,6 +11,7 @@ import { useActiveSemester } from "@/lib/hooks";
 import { fmtNumber } from "@/lib/format";
 import { GradeEditor } from "./GradeEditor";
 import type { GpaReport } from "@/core/services/grades";
+import { scaleName, gradeLabel } from "@/lib/grading";
 
 function gpaText(v: number | null | undefined, kind?: string) {
   if (v === null || v === undefined) return "—";
@@ -48,7 +49,7 @@ export function GradesPage() {
           <Stat label={scope === "semester" ? t("grades.semesterGpa") : t("grades.cumulativeGpa")} value={gpaText(report?.actual, report?.scale?.kind)} hint={t("grades.actualHint")} tone="accent" />
           <Stat label={t("grades.projectedGpa")} value={gpaText(report?.projected, report?.scale?.kind)} hint={t("grades.projectedHint")} />
           <Stat label={t("grades.completedCredits")} value={fmtNumber(report?.actualCredits ?? 0, 1)} hint={t("grades.ofCredits", { n: fmtNumber(report?.totalCredits ?? 0, 1) })} />
-          <Stat label={t("grades.scale")} value={<span className="text-base">{report?.scale?.name ?? "—"}</span>} />
+          <Stat label={t("grades.scale")} value={<span className="text-base">{scaleName(report?.scale?.name)}</span>} />
         </div>
         <div className="flex flex-wrap gap-3 text-xs text-muted">
           <span className="flex items-center gap-1.5"><Badge tone="success">{t("enums.gradeStatus.actual")}</Badge> {t("grades.legendActual")}</span>
@@ -69,7 +70,7 @@ export function GradesPage() {
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-medium">{r.subject.name}</div>
                       <div className="text-xs text-subtle">
-                        {t("subjects.creditsShort", { n: fmtNumber(r.subject.credits, 1) })} · {r.scale?.name ?? "—"}
+                        {t("subjects.creditsShort", { n: fmtNumber(r.subject.credits, 1) })} · {scaleName(r.scale?.name)}
                         {!r.subject.countsInGpa && ` · ${t("grades.notInGpa")}`}
                       </div>
                     </div>
@@ -79,7 +80,7 @@ export function GradesPage() {
                     </div>
                     <div className="w-24 text-end">
                       <div className="font-semibold tabular-nums">{pct === null ? "—" : `${fmtNumber(pct, 1)}%`}</div>
-                      <div className="text-[11px] text-subtle">{r.summary.state === "final" ? r.letter : r.projectedLetter ?? ""}</div>
+                      <div className="text-[11px] text-subtle">{gradeLabel(r.summary.state === "final" ? r.letter : r.projectedLetter)}</div>
                     </div>
                     <Badge tone={r.summary.state === "final" ? "success" : r.summary.state === "in_progress" ? "warning" : "neutral"}>{t(`grades.states.${r.summary.state}`)}</Badge>
                     {isOpen ? <ChevronUp className="size-4 text-muted" /> : <ChevronDown className="size-4 text-muted" />}

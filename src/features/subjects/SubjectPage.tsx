@@ -46,6 +46,7 @@ import { openApi } from "@/platform/tauri";
 import { toast } from "sonner";
 import { errorMessage } from "@/lib/errors";
 import type { Subject } from "@/core/model/types";
+import { gradeLabel } from "@/lib/grading";
 
 const TABS = ["overview", "lectures", "notes", "files", "assignments", "exams", "tasks", "questions", "grades", "attendance", "resources", "projects"] as const;
 type Tab = (typeof TABS)[number];
@@ -266,7 +267,7 @@ function Overview({ subjectId }: { subjectId: string }) {
                 <Badge tone={report.summary.state === "final" ? "success" : "warning"}>{t(`grades.states.${report.summary.state}`)}</Badge>
               </div>
               <ProgressBar className="mt-2" value={pct ?? 0} />
-              <p className="mt-1 text-xs text-subtle">{report.summary.state === "final" ? report.letter : report.projectedLetter}</p>
+              <p className="mt-1 text-xs text-subtle">{gradeLabel(report.summary.state === "final" ? report.letter : report.projectedLetter)}</p>
             </>
           ) : (
             <p className="text-xs text-subtle">{t("grades.noItems")}</p>

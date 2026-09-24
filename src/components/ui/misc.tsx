@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Link } from "react-router";
 import { ChevronRight, Inbox } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/cn";
 
 export function Card({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
@@ -47,8 +48,9 @@ export interface Crumb {
 }
 
 export function Breadcrumbs({ items }: { items: Crumb[] }) {
+  const { t } = useTranslation();
   return (
-    <nav aria-label="breadcrumb" className="flex min-w-0 items-center gap-1 text-xs text-muted">
+    <nav aria-label={t("common.breadcrumb")} className="flex min-w-0 items-center gap-1 text-xs text-muted">
       {items.map((c, i) => (
         <React.Fragment key={i}>
           {i > 0 && <ChevronRight className="size-3 shrink-0 rtl:rotate-180" />}

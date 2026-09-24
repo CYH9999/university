@@ -25,9 +25,8 @@ import type { FileRecord } from "@/core/model/types";
 import { useServices } from "@/app/services";
 import { useQ, invalidateAll } from "@/app/query";
 import { openApi, dialogs } from "@/platform/tauri";
-import { errorMessage } from "@/lib/errors";
-import { formatBytes } from "@/core/utils/text";
-import { fmtRelative } from "@/lib/format";
+import { errorMessage, fileFailureMessage } from "@/lib/errors";
+import { fmtRelative, fmtBytes } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Tip } from "@/components/ui/controls";
 import { EmptyState } from "@/components/ui/misc";
@@ -139,7 +138,7 @@ export function AttachmentsPanel({ entityType, entityId, title, compact, hideUpl
       const r = await s.files.attach(entityType, entityId, picked);
       if (r.imported.length) toast.success(t("files.importedCount", { count: r.imported.length }));
       if (r.linkedExisting.length) toast.info(t("files.linkedExisting", { count: r.linkedExisting.length }));
-      for (const f of r.failed) toast.error(`${f.name}: ${f.errorCode ? t(`errors.${f.errorCode.replace(/\./g, "_")}`, { defaultValue: f.error ?? "" }) : f.error}`);
+      for (const f of r.failed) toast.error(fileFailureMessage(f));
       await invalidateAll();
     } catch (e) {
       toast.error(errorMessage(e));
@@ -190,7 +189,7 @@ export function AttachmentsPanel({ entityType, entityId, title, compact, hideUpl
                     </span>
                   ) : (
                     <>
-                      {formatBytes(f.size)} · <span className="ltr">{f.relPath}</span>
+                      {fmtBytes(f.size)} · <span className="ltr">{f.relPath}</span>
                     </>
                   )}
                 </div>

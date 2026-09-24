@@ -13,8 +13,7 @@ import { useWorkspace, flushEverything } from "@/app/workspace";
 import { confirm } from "@/app/confirm";
 import { backupApi, dialogs, openApi, type BackupInfo, type BackupKind, type ValidationReport } from "@/platform/tauri";
 import { errorMessage } from "@/lib/errors";
-import { formatBytes } from "@/core/utils/text";
-import { fmtDateTime, fmtRelative } from "@/lib/format";
+import { fmtDateTime, fmtRelative, fmtBytes } from "@/lib/format";
 
 const KIND_ICON = { full: Archive, database: Database, attachments: Paperclip } as const;
 
@@ -39,7 +38,7 @@ export function BackupPage() {
       const r = await backupApi.create(kind, label.trim() || "manual");
       // Only claim success after the archive was written and renamed into place.
       update({ backup: { lastBackupAt: new Date().toISOString(), lastBackupFile: r.fileName, lastError: null } });
-      toast.success(t("backup.created", { size: formatBytes(r.size) }), { action: { label: t("files.reveal"), onClick: () => reveal(r.path) } });
+      toast.success(t("backup.created", { size: fmtBytes(r.size) }), { action: { label: t("files.reveal"), onClick: () => reveal(r.path) } });
       setLabel("");
       await refetch();
     } catch (e) {
@@ -58,7 +57,7 @@ export function BackupPage() {
     try {
       await flushEverything();
       const r = await backupApi.create("full", "export", dest);
-      toast.success(t("backup.exported", { size: formatBytes(r.size) }), { action: { label: t("files.reveal"), onClick: () => reveal(r.path) } });
+      toast.success(t("backup.exported", { size: fmtBytes(r.size) }), { action: { label: t("files.reveal"), onClick: () => reveal(r.path) } });
     } catch (e) {
       toast.error(`${t("backup.failed")}: ${errorMessage(e)}`);
     } finally {
@@ -111,7 +110,7 @@ export function BackupPage() {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat label={t("backup.last")} value={backup.lastBackupAt ? fmtRelative(backup.lastBackupAt) : t("backup.never")} tone={ageDays === null || ageDays > backup.intervalDays ? "warning" : "success"} hint={backup.lastBackupFile ?? undefined} />
           <Stat label={t("backup.count")} value={list.length} />
-          <Stat label={t("backup.totalSize")} value={formatBytes(list.reduce((a, b) => a + b.size, 0))} />
+          <Stat label={t("backup.totalSize")} value={fmtBytes(list.reduce((a, b) => a + b.size, 0))} />
           <Stat label={t("backup.location")} value={<span className="block truncate font-mono text-xs" dir="ltr">{info?.path ? `${info.path}/Backups` : "—"}</span>} />
         </div>
         {backup.lastError && (
@@ -146,7 +145,7 @@ export function BackupPage() {
               <Switch checked={backup.autoEnabled} onCheckedChange={(v) => update({ backup: { autoEnabled: v } })} label={t("backup.autoEnabled")} description={t("backup.autoHint")} />
               <div className="grid grid-cols-3 gap-3">
                 <Field label={t("backup.interval")}>
-                  <NativeSelect value={String(backup.intervalDays)} onChange={(e) => update({ backup: { intervalDays: Number(e.target.value) } })} options={[1, 3, 7, 14, 30].map((d) => ({ value: String(d), label: t("reminders.days", { count: d }) }))} />
+                  <NativeSelect value={String(backup.intervalDays)} onChange={(e) => update({ backup: { intervalDays: Number(e.target.value) } })} options={[1, 3, 7, 14, 30].map((d) => ({ value: String(d), label: t("time.days", { count: d }) }))} />
                 </Field>
                 <Field label={t("backup.keep")}>
                   <NativeSelect value={String(backup.keep)} onChange={(e) => update({ backup: { keep: Number(e.target.value) } })} options={[3, 5, 10, 20].map((n) => ({ value: String(n), label: String(n) }))} />
@@ -188,7 +187,7 @@ export function BackupPage() {
                       </td>
                       <td className="px-3 py-2">{b.manifest ? <Badge><Icon className="size-3" /> {t(`backup.kind.${b.manifest.kind}`)}</Badge> : <Badge tone="danger">{t("backup.unreadable")}</Badge>}</td>
                       <td className="px-3 py-2 text-xs text-muted">{b.manifest?.label ?? "—"}</td>
-                      <td className="px-3 py-2 text-xs tabular-nums">{formatBytes(b.size)}</td>
+                      <td className="px-3 py-2 text-xs tabular-nums">{fmtBytes(b.size)}</td>
                       <td className="px-3 py-2 text-xs tabular-nums">{b.manifest?.files.length ?? "—"}</td>
                       <td className="px-4 py-2">
                         <div className="flex justify-end gap-1">
@@ -298,7 +297,7 @@ function InspectModal({ state, onClose }: { state: { path: string; report: Valid
               <dt className="text-muted">{t("backup.type")}</dt><dd>{t(`backup.kind.${m.kind}`)}</dd>
               <dt className="text-muted">{t("backup.date")}</dt><dd>{fmtDateTime(m.createdAt)}</dd>
               <dt className="text-muted">{t("backup.appVersion")}</dt><dd>{m.appVersion} · {t("backup.schema", { v: m.schemaVersion ?? "—" })}</dd>
-              <dt className="text-muted">{t("files.size")}</dt><dd>{formatBytes(m.totalSize)} · {t("backup.fileCount", { count: m.files.length })}</dd>
+              <dt className="text-muted">{t("files.size")}</dt><dd>{fmtBytes(m.totalSize)} · {t("backup.fileCount", { count: m.files.length })}</dd>
               <dt className="text-muted">{t("backup.database")}</dt><dd>{report.databaseOk === null ? "—" : report.databaseOk ? t("backup.dbOk") : t("backup.dbBad")}</dd>
             </dl>
           )}

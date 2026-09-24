@@ -3,6 +3,7 @@ import { RouterProvider } from "react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { useTranslation } from "react-i18next";
+import { Direction } from "radix-ui";
 import { Loader2, MonitorX, AlertOctagon } from "lucide-react";
 import { queryClient } from "./query";
 import { router } from "./router";
@@ -16,6 +17,7 @@ import { WorkspaceSelect } from "@/features/onboarding/WorkspaceSelect";
 import { RecoveryScreen } from "@/features/onboarding/RecoveryScreen";
 import { Onboarding } from "@/features/onboarding/Onboarding";
 import { logApi } from "@/platform/tauri";
+import { dirOf, onMissingKey, type Lang } from "@/i18n";
 
 function useGlobalErrorLogging() {
   React.useEffect(() => {
@@ -23,9 +25,11 @@ function useGlobalErrorLogging() {
     const onRejection = (e: PromiseRejectionEvent) => void logApi.write("error", `Unhandled rejection: ${e.reason instanceof Error ? e.reason.stack ?? e.reason.message : String(e.reason)}`);
     window.addEventListener("error", onError);
     window.addEventListener("unhandledrejection", onRejection);
+    const offMissing = onMissingKey((key) => void logApi.write("warn", `Missing translation: ${key}`).catch(() => undefined));
     return () => {
       window.removeEventListener("error", onError);
       window.removeEventListener("unhandledrejection", onRejection);
+      offMissing();
     };
   }, []);
 }
@@ -34,6 +38,8 @@ export function App() {
   const phase = useWorkspace((w) => w.phase);
   const boot = useWorkspace((w) => w.boot);
   const theme = useSettings((s) => s.settings.theme);
+  const { i18n } = useTranslation();
+  const dir = dirOf(i18n.language as Lang);
   useGlobalErrorLogging();
   React.useEffect(() => {
     installCloseGuard();
@@ -41,15 +47,17 @@ export function App() {
   }, [boot]);
 
   return (
+    <Direction.Provider dir={dir}>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider delayDuration={300}>
         <ServicesProvider>
           {phase === "ready" ? <RouterProvider router={router} /> : <Gate />}
           <ConfirmHost />
-          <Toaster position="bottom-left" theme={theme === "light" ? "light" : "dark"} richColors closeButton toastOptions={{ className: "font-sans" }} />
+          <Toaster position={dir === "rtl" ? "bottom-left" : "bottom-right"} dir={dir} theme={theme === "light" ? "light" : "dark"} richColors closeButton toastOptions={{ className: "font-sans" }} />
         </ServicesProvider>
       </TooltipProvider>
     </QueryClientProvider>
+    </Direction.Provider>
   );
 }
 
