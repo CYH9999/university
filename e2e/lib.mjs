@@ -1,7 +1,10 @@
 // Shared WebDriver helpers for the end-to-end tests of the real desktop app (tauri-driver).
 //
 // Environment:
-//   E2E_APP           path of the application binary (default: the debug build in src-tauri/target)
+//   E2E_APP           path of the application binary (default: the debug build in src-tauri/target).
+//                     On Windows it must be a build with WebView2 DevTools enabled (a debug build, or
+//                     `tauri build --features tauri/devtools`): WebDriver needs remote debugging, which
+//                     production builds disable.
 //   TAURI_DRIVER      path of tauri-driver (default: ~/.cargo/bin/tauri-driver or tauri-driver on PATH)
 //   NATIVE_DRIVER     path of msedgedriver.exe (Windows) or WebKitWebDriver (Linux), if not on PATH
 //   E2E_RESET_APPDATA "1" to delete the app's own config folder (workspace pointer) before starting —
@@ -161,24 +164,29 @@ export function createRun(name) {
   }
 
   // Windows fallback ("attach mode"): the test starts the app itself with WebView2 remote debugging
-  // enabled and msedgedriver attaches to it (documented WebView2 automation mode).
+  // enabled and msedgedriver attaches to it (documented WebView2 automation mode). Remote debugging
+  // only works in builds with DevTools enabled; production builds refuse it.
   let attachMode = edgeDirect && process.env.E2E_ATTACH === "1";
   let appProc = null;
+  const debugPort = 9222;
+  async function debugPortOpen() {
+    try {
+      return (await fetch(`http://127.0.0.1:${debugPort}/json/version`, { signal: AbortSignal.timeout(2000) })).ok;
+    } catch {
+      return false;
+    }
+  }
   async function launchForAttach() {
-    const port = 9222;
-    appProc = spawn(app, [], { env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}` }, stdio: "ignore" });
+    // Never attach to the WebView2 of a previous instance that is still shutting down.
+    for (let i = 0; i < 30 && (await debugPortOpen()); i++) await sleep(500);
+    appProc = spawn(app, [], { env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${debugPort}` }, stdio: "ignore" });
     const end = Date.now() + 90000;
     while (Date.now() < end) {
-      try {
-        const r = await fetch(`http://127.0.0.1:${port}/json/version`, { signal: AbortSignal.timeout(2000) });
-        if (r.ok) return `127.0.0.1:${port}`;
-      } catch {
-        /* not up yet */
-      }
+      if (await debugPortOpen()) return `127.0.0.1:${debugPort}`;
       if (appProc.exitCode !== null) throw new Error(`the app exited with code ${appProc.exitCode}`);
       await sleep(500);
     }
-    throw new Error("the WebView2 remote debugging port did not open");
+    throw new Error("the WebView2 remote debugging port did not open (is this a build with DevTools enabled?)");
   }
   async function closeApp() {
     if (!appProc || appProc.exitCode !== null) return;
@@ -186,6 +194,7 @@ export function createRun(name) {
     spawnSync("taskkill", ["/PID", String(appProc.pid)], { stdio: "ignore" });
     for (let i = 0; i < 20 && appProc.exitCode === null; i++) await sleep(500);
     if (appProc.exitCode === null) spawnSync("taskkill", ["/PID", String(appProc.pid), "/T", "/F"], { stdio: "ignore" });
+    for (let i = 0; i < 30 && (await debugPortOpen()); i++) await sleep(500);
     appProc = null;
   }
 

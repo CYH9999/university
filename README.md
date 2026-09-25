@@ -60,8 +60,11 @@ npx tauri build --target x86_64-pc-windows-gnu --bundles nsis
 ```
 
 The GitHub Actions workflow `.github/workflows/windows.yml` builds both installers on Windows,
-installs the NSIS build silently, runs the end-to-end tests against the installed app,
+installs the NSIS build silently and launches it, runs the end-to-end tests on Windows,
 uninstalls it, installs/launches/uninstalls the MSI, and uploads the installers as artifacts.
+WebDriver needs WebView2 remote debugging, which production builds disable, so the end-to-end
+tests drive a test binary of the same source built with `--features tauri/devtools`; that binary
+is never shipped.
 
 ## Testing
 

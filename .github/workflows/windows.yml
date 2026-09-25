@@ -1,8 +1,12 @@
 name: Windows desktop build
 
 # Builds the production Windows x64 installers (NSIS .exe and MSI) on a real Windows machine,
-# installs the app like a user would, runs the end-to-end tests against the installed app,
-# and uninstalls it again. The installers are uploaded as build artifacts.
+# installs the app like a user would, launches it, runs the end-to-end tests on Windows and
+# uninstalls it again. The installers are uploaded as build artifacts.
+#
+# WebDriver needs WebView2 remote debugging, which the production build disables (DevTools off).
+# The end-to-end tests therefore drive a separate test binary built from the same source with
+# DevTools enabled (`--features tauri/devtools`). That binary is never bundled or uploaded.
 on:
   push:
     branches: ["main", "claude/epic-hopper-k8u40l"]
@@ -90,7 +94,7 @@ jobs:
           if (!$key) { throw "Uninstall entry (Apps & features) is missing" }
           $props = Get-ItemProperty $key.PSPath
           Write-Host "Apps & features: $($props.DisplayName) $($props.DisplayVersion) by $($props.Publisher)"
-          "E2E_APP=$exe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "INSTALLED_APP=$exe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           # The installed app must not depend on development tools.
           Get-ChildItem (Split-Path $exe) | Format-Table Name, Length
 
@@ -98,7 +102,10 @@ jobs:
         shell: pwsh
         run: |
           $since = Get-Date
-          $p = Start-Process $env:E2E_APP -PassThru
+          # Also ask for WebView2 remote debugging: the production build must refuse it.
+          $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=9222"
+          $p = Start-Process $env:INSTALLED_APP -PassThru
+          Remove-Item Env:\WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
           Start-Sleep 20
           $webviews = @(Get-Process msedgewebview2 -ErrorAction SilentlyContinue).Count
           if ($p.HasExited) {
@@ -111,8 +118,20 @@ jobs:
           Write-Host "University is running: pid $($p.Id), window '$($proc.MainWindowTitle)', responding=$($proc.Responding), WebView2 processes=$webviews"
           if ($proc.MainWindowTitle -ne "University") { throw "Main window 'University' not found" }
           if ($webviews -lt 1) { throw "WebView2 did not start" }
+          $debuggable = $true
+          try { Invoke-WebRequest "http://127.0.0.1:9222/json/version" -TimeoutSec 5 -UseBasicParsing | Out-Null } catch { $debuggable = $false }
+          if ($debuggable) { throw "The production build exposes a WebView2 remote debugging port" }
+          Write-Host "WebView2 remote debugging is disabled in the production build."
           Stop-Process -Id $p.Id -Force
           Start-Sleep 3
+
+      - name: Build the E2E test binary (same source, DevTools enabled, never shipped)
+        shell: pwsh
+        run: |
+          npx tauri build --target x86_64-pc-windows-msvc --no-bundle --features tauri/devtools
+          New-Item -ItemType Directory -Force e2e-bin | Out-Null
+          Copy-Item "src-tauri/target/$env:TARGET/release/University.exe" e2e-bin/University.exe
+          "E2E_APP=$PWD\e2e-bin\University.exe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Install WebDriver tools (test machine only)
         shell: pwsh
