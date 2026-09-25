@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: windows-${{ github.ref }}
+  group: windows-desktop-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -109,14 +109,14 @@ jobs:
         run: node e2e/smoke.mjs
 
       - name: "E2E: files, PDFs, persistence, notifications, backup and restore"
-        if: always()
+        if: success() || failure()
         timeout-minutes: 30
         env:
           E2E_RESET_APPDATA: "1"
         run: node e2e/data.mjs
 
       - name: Uninstall (silent) and verify
-        if: always()
+        if: success() || failure()
         shell: pwsh
         run: |
           $dir = Join-Path $env:LOCALAPPDATA "University"
@@ -132,7 +132,7 @@ jobs:
           Write-Host "Uninstalled; workspace data kept."
 
       - name: MSI install, launch and uninstall
-        if: always()
+        if: success() || failure()
         shell: pwsh
         run: |
           $msi = Get-ChildItem "src-tauri/target/$env:TARGET/release/bundle/msi/*.msi" | Select-Object -First 1
@@ -151,7 +151,7 @@ jobs:
           if (Test-Path $exe) { throw "MSI uninstall left University.exe behind" }
 
       - name: Upload test screenshots and results
-        if: always()
+        if: success() || failure()
         uses: actions/upload-artifact@v4
         with:
           name: windows-e2e-results
