@@ -11,7 +11,7 @@
 //                     only for disposable machines such as CI runners.
 import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync, existsSync, readFileSync, readdirSync, openSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { homedir } from "node:os";
 
 export const root = resolve(import.meta.dirname, "..");
@@ -163,12 +163,33 @@ export function createRun(name) {
     await exec("window.__UNIVERSITY_E2E_DIALOGS__ = { open: arguments[0], save: arguments[1] }; return true;", [open, save]);
   }
 
-  // Windows fallback ("attach mode"): the test starts the app itself with WebView2 remote debugging
-  // enabled and msedgedriver attaches to it (documented WebView2 automation mode). Remote debugging
-  // only works in builds with DevTools enabled; production builds refuse it.
+  // Windows "attach mode": the test starts the app itself with WebView2 remote debugging enabled and
+  // msedgedriver attaches to it (documented WebView2 automation mode). Remote debugging only works in
+  // test builds with DevTools enabled; production builds refuse it. E2E_ATTACH=1 skips launch mode.
   let attachMode = edgeDirect && process.env.E2E_ATTACH === "1";
   let appProc = null;
+  let diagnosed = false;
   const debugPort = 9222;
+  // A separate WebView2 data folder for the run (as in Microsoft's and Playwright's WebView2 guides).
+  // The app keeps nothing there: its data lives in the workspace and its own config folder.
+  const webviewData = join(tmp, "webview2");
+  /** WebView2 browser processes of the app with their command lines, and who listens on the port. */
+  function webviewDiagnostics() {
+    const exe = basename(app).replace(/'/g, "''");
+    const ps = [
+      `Get-CimInstance Win32_Process -Filter "Name='msedgewebview2.exe' OR Name='${exe}'" | Where-Object { $_.CommandLine -notmatch '--type=' } |`,
+      `ForEach-Object { "$($_.Name) pid=$($_.ProcessId) parent=$($_.ParentProcessId): $($_.CommandLine)" };`,
+      `Get-NetTCPConnection -State Listen -LocalPort ${debugPort} -ErrorAction SilentlyContinue | ForEach-Object { "port ${debugPort} is open (pid $($_.OwningProcess))" }`,
+    ].join(" ");
+    const r = spawnSync("powershell", ["-NoProfile", "-Command", ps], { encoding: "utf8", timeout: 30000 });
+    let files = [];
+    try {
+      files = readdirSync(webviewData, { recursive: true }).filter((f) => String(f).endsWith("DevToolsActivePort"));
+    } catch {
+      /* no data folder yet */
+    }
+    return `${(r.stdout || "").trim() || "(no WebView2 browser process found)"}\nDevToolsActivePort files: ${files.join(", ") || "none"}`;
+  }
   async function debugPortOpen() {
     try {
       return (await fetch(`http://127.0.0.1:${debugPort}/json/version`, { signal: AbortSignal.timeout(2000) })).ok;
@@ -179,13 +200,20 @@ export function createRun(name) {
   async function launchForAttach() {
     // Never attach to the WebView2 of a previous instance that is still shutting down.
     for (let i = 0; i < 30 && (await debugPortOpen()); i++) await sleep(500);
-    appProc = spawn(app, [], { env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${debugPort}` }, stdio: "ignore" });
+    mkdirSync(webviewData, { recursive: true });
+    const env = { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${debugPort}`, WEBVIEW2_USER_DATA_FOLDER: webviewData };
+    appProc = spawn(app, [], { env, stdio: "ignore" });
     const end = Date.now() + 90000;
     while (Date.now() < end) {
-      if (await debugPortOpen()) return `127.0.0.1:${debugPort}`;
+      if (await debugPortOpen()) {
+        if (!diagnosed) console.log(`--- WebView2 (attach mode) ---\n${webviewDiagnostics()}\n---`);
+        diagnosed = true;
+        return `127.0.0.1:${debugPort}`;
+      }
       if (appProc.exitCode !== null) throw new Error(`the app exited with code ${appProc.exitCode}`);
       await sleep(500);
     }
+    console.log(`--- WebView2 (attach mode, port closed) ---\n${webviewDiagnostics()}\n---`);
     throw new Error("the WebView2 remote debugging port did not open (is this a build with DevTools enabled?)");
   }
   async function closeApp() {

@@ -6,7 +6,8 @@ name: Windows desktop build
 #
 # WebDriver needs WebView2 remote debugging, which the production build disables (DevTools off).
 # The end-to-end tests therefore drive a separate test binary built from the same source with
-# DevTools enabled (`--features tauri/devtools`). That binary is never bundled or uploaded.
+# DevTools enabled (`--features tauri/devtools`) and a local debugging port
+# (e2e/test-build-config.mjs). That binary is built after the installers and is never shipped.
 on:
   push:
     branches: ["main", "claude/epic-hopper-k8u40l"]
@@ -102,10 +103,12 @@ jobs:
         shell: pwsh
         run: |
           $since = Get-Date
-          # Also ask for WebView2 remote debugging: the production build must refuse it.
+          # Also ask for WebView2 remote debugging (the same way the E2E tests do): the production
+          # build must refuse it.
           $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=9222"
+          $env:WEBVIEW2_USER_DATA_FOLDER = Join-Path $env:RUNNER_TEMP "webview2-production-check"
           $p = Start-Process $env:INSTALLED_APP -PassThru
-          Remove-Item Env:\WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
+          Remove-Item Env:\WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS, Env:\WEBVIEW2_USER_DATA_FOLDER
           Start-Sleep 20
           $webviews = @(Get-Process msedgewebview2 -ErrorAction SilentlyContinue).Count
           if ($p.HasExited) {
@@ -128,8 +131,9 @@ jobs:
       - name: Build the E2E test binary (same source, DevTools enabled, never shipped)
         shell: pwsh
         run: |
-          npx tauri build --target x86_64-pc-windows-msvc --no-bundle --features tauri/devtools
           New-Item -ItemType Directory -Force e2e-bin | Out-Null
+          node e2e/test-build-config.mjs e2e-bin/tauri.e2e.conf.json
+          npx tauri build --target x86_64-pc-windows-msvc --no-bundle --features tauri/devtools --config "$PWD\e2e-bin\tauri.e2e.conf.json"
           Copy-Item "src-tauri/target/$env:TARGET/release/University.exe" e2e-bin/University.exe
           "E2E_APP=$PWD\e2e-bin\University.exe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
@@ -142,9 +146,11 @@ jobs:
           "NATIVE_DRIVER=$PWD\msedgedriver.exe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: "E2E: onboarding, all pages in Arabic and English, restart, recovery"
+        if: success() || failure()
         timeout-minutes: 30
         env:
           E2E_RESET_APPDATA: "1"
+          E2E_ATTACH: "1"
         run: node e2e/smoke.mjs
 
       - name: "E2E: files, PDFs, persistence, notifications, backup and restore"
@@ -152,6 +158,7 @@ jobs:
         timeout-minutes: 30
         env:
           E2E_RESET_APPDATA: "1"
+          E2E_ATTACH: "1"
         run: node e2e/data.mjs
 
       - name: Uninstall (silent) and verify

@@ -63,8 +63,8 @@ The GitHub Actions workflow `.github/workflows/windows.yml` builds both installe
 installs the NSIS build silently and launches it, runs the end-to-end tests on Windows,
 uninstalls it, installs/launches/uninstalls the MSI, and uploads the installers as artifacts.
 WebDriver needs WebView2 remote debugging, which production builds disable, so the end-to-end
-tests drive a test binary of the same source built with `--features tauri/devtools`; that binary
-is never shipped.
+tests drive a test binary of the same source built with `--features tauri/devtools` and a local
+debugging port (`e2e/test-build-config.mjs`); that binary is never shipped.
 
 ## Testing
 
