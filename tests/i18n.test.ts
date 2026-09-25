@@ -80,7 +80,7 @@ describe("translation coverage", () => {
 
   it("writes Arabic text in Arabic", () => {
     // Values that are legitimately script-neutral (symbols, product names, formats).
-    const neutral = /^[\s\d\W]*$|^(UniOS|PDF|CSV|JSON|ZIP|HTML|Markdown|SVG|Linux|Windows|macOS|OSINT|Pwn|SOC|GPA|CTF|H1|H2|H3)$/;
+    const neutral = /^[\s\d\W]*$|^(UniOS|University|PDF|CSV|JSON|ZIP|HTML|Markdown|SVG|Linux|Windows|macOS|OSINT|Pwn|SOC|GPA|CTF|H1|H2|H3)$/;
     // Code samples (a shell command used as a placeholder) are the same in every language.
     const codeSamples = new Set(["commands.commandPlaceholder"]);
     const latinOnly = [...AR].filter(([k, v]) => !codeSamples.has(k) && !/[\u0600-\u06FF]/.test(v) && !neutral.test(v.replace(/\{\{[^}]+\}\}/g, "").trim()));
@@ -165,7 +165,7 @@ describe("source audit", () => {
       /^src\/core\/grading\/scales\.ts:/,
       /^src\/features\/onboarding\/Onboarding\.tsx:\d+\tarabic-literal\tمن اليمين إلى اليسار · RTL$/,
       /\tjsx-text\t(Ctrl\+B|Ctrl K|Ctrl\+S)$/,
-      /\tattr:placeholder\t(https:\/\/|D:\\\\University\\\\UniOS Workspace)$/,
+      /\tattr:placeholder\t(https:\/\/|D:\\\\University Workspace)$/,
     ];
     const findings = (audit() as { where: string; kind: string; text: string }[]).map((f) => `${f.where.replace(/\\/g, "/")}\t${f.kind}\t${f.text}`);
     expect(findings.filter((f) => !allowed.some((re) => re.test(f)))).toEqual([]);

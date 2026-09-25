@@ -152,9 +152,9 @@ pub fn backup_file_name(kind: BackupKind, label: &str) -> String {
     let ts = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
     let label = crate::paths::sanitize_filename(label).replace(' ', "-");
     if label.is_empty() || label == "manual" || label == "untitled" {
-        format!("UniOS-{}-{}.zip", kind.as_str(), ts)
+        format!("University-{}-{}.zip", kind.as_str(), ts)
     } else {
-        format!("UniOS-{}-{}-{}.zip", kind.as_str(), label, ts)
+        format!("University-{}-{}-{}.zip", kind.as_str(), label, ts)
     }
 }
 
@@ -250,7 +250,7 @@ pub fn write_archive(
 fn read_manifest_from_zip<R: Read + std::io::Seek>(zip: &mut zip::ZipArchive<R>) -> AppResult<BackupManifest> {
     let mut f = zip
         .by_name(MANIFEST_NAME)
-        .map_err(|_| AppError::coded("backup.manifest_missing", "The archive is not a UniOS backup (manifest missing)"))?;
+        .map_err(|_| AppError::coded("backup.manifest_missing", "The archive is not a University backup (manifest missing)"))?;
     let mut s = String::new();
     f.read_to_string(&mut s)?;
     let m: BackupManifest = serde_json::from_str(&s)
@@ -259,7 +259,7 @@ fn read_manifest_from_zip<R: Read + std::io::Seek>(zip: &mut zip::ZipArchive<R>)
         return Err(AppError::coded("backup.manifest_invalid", "Unknown backup format"));
     }
     if m.format_version > BACKUP_FORMAT_VERSION {
-        return Err(AppError::coded("backup.newer_version", "This backup was created by a newer version of UniOS"));
+        return Err(AppError::coded("backup.newer_version", "This backup was created by a newer version of University"));
     }
     Ok(m)
 }

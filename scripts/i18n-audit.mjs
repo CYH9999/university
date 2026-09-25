@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const TEXT_ATTRS = new Set(["placeholder", "title", "aria-label", "label", "alt", "description", "hint", "emptyText", "confirmLabel", "tooltip"]);
 // Text that is not language-specific: symbols, units, product names, keyboard keys, code.
-const ALLOWED = [/^[\s\W\d_]*$/u, /^(UniOS|English|العربية|Ctrl|Shift|Alt|Esc|Enter|Tab|PDF|CSV|JSON|ZIP|SVG|HTML|MD|URL|GPA|CTF|SHA-256|\.excalidraw|IQD|USD|EUR|GBP|TRY|SAR|AED|JOD|KB|MB|GB|B|EN|AR|OK|⌘|K|N|T|S|B)$/];
+const ALLOWED = [/^[\s\W\d_]*$/u, /^(UniOS|University|English|العربية|Ctrl|Shift|Alt|Esc|Enter|Tab|PDF|CSV|JSON|ZIP|SVG|HTML|MD|URL|GPA|CTF|SHA-256|\.excalidraw|IQD|USD|EUR|GBP|TRY|SAR|AED|JOD|KB|MB|GB|B|EN|AR|OK|⌘|K|N|T|S|B)$/];
 
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {

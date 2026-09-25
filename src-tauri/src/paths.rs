@@ -32,7 +32,12 @@ pub fn safe_join(root: &Path, rel: &str) -> AppResult<PathBuf> {
     let mut out = root.to_path_buf();
     for comp in Path::new(&rel).components() {
         match comp {
-            Component::Normal(c) => out.push(c),
+            Component::Normal(c) => {
+                if cfg!(windows) && !is_portable_component(&c.to_string_lossy()) {
+                    return Err(AppError::coded("path.invalid", format!("Invalid file or folder name: {rel}")));
+                }
+                out.push(c)
+            }
             Component::CurDir => {}
             _ => {
                 return Err(AppError::coded(
@@ -44,6 +49,16 @@ pub fn safe_join(root: &Path, rel: &str) -> AppResult<PathBuf> {
     }
     ensure_within(root, &out)?;
     Ok(out)
+}
+
+/// On Windows, device names (CON, NUL, COM1…) and names ending in a dot or space do not refer
+/// to ordinary files (the OS maps or silently rewrites them), so they are rejected there.
+fn is_portable_component(name: &str) -> bool {
+    if name.ends_with('.') || name.ends_with(' ') {
+        return false;
+    }
+    let stem = name.split('.').next().unwrap_or("").trim_end().to_uppercase();
+    !WINDOWS_RESERVED.contains(&stem.as_str())
 }
 
 /// Ensures that the deepest existing ancestor of `target` resolves inside `root`
@@ -189,6 +204,33 @@ mod tests {
         assert!(safe_join(root, "..\\..\\x").is_err());
         assert!(safe_join(root, "Subjects/Net/a.pdf").is_ok());
         assert!(safe_join(root, "a\0b").is_err());
+    }
+
+    #[test]
+    fn portable_component_names() {
+        assert!(is_portable_component("Subjects"));
+        assert!(is_portable_component("محاضرة 1.pdf"));
+        assert!(is_portable_component("console.log"));
+        assert!(!is_portable_component("CON"));
+        assert!(!is_portable_component("nul.txt"));
+        assert!(!is_portable_component("COM1.pdf"));
+        assert!(!is_portable_component("notes."));
+        assert!(!is_portable_component("notes "));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_paths_stay_inside_the_workspace() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        assert!(safe_join(root, "Subjects\\Networks\\lecture.pdf").is_ok_and(|p| p.starts_with(root)));
+        assert!(safe_join(root, "..\\..\\Windows\\System32").is_err());
+        assert!(safe_join(root, "C:\\Windows").is_err());
+        assert!(safe_join(root, "\\\\server\\share\\x").is_ok_and(|p| p.starts_with(root)));
+        assert!(safe_join(root, "Subjects/CON").is_err());
+        assert!(safe_join(root, "Subjects/aux.txt").is_err());
+        assert!(safe_join(root, "Subjects/name.").is_err());
+        assert!(safe_join(root, "file.txt:stream").is_err());
     }
 
     #[cfg(unix)]

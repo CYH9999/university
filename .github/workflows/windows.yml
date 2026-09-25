@@ -1,0 +1,160 @@
+name: Windows desktop build
+
+# Builds the production Windows x64 installers (NSIS .exe and MSI) on a real Windows machine,
+# installs the app like a user would, runs the end-to-end tests against the installed app,
+# and uninstalls it again. The installers are uploaded as build artifacts.
+on:
+  push:
+    branches: ["main", "claude/epic-hopper-k8u40l"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: Build, install and test (Windows x64)
+    runs-on: windows-latest
+    timeout-minutes: 120
+    env:
+      CARGO_TERM_COLOR: always
+      TARGET: x86_64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check, lint and unit tests
+        run: |
+          npx tsc -b
+          npx eslint .
+          npx vitest run
+
+      - name: Rust tests (including Windows path tests)
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Build production installers (NSIS + MSI)
+        run: npx tauri build --target x86_64-pc-windows-msvc
+
+      - name: List installers
+        shell: pwsh
+        run: |
+          $bundle = "src-tauri/target/$env:TARGET/release/bundle"
+          Get-ChildItem -Recurse $bundle -Include *.exe, *.msi | ForEach-Object {
+            "{0}  {1:N1} MB  SHA256 {2}" -f $_.FullName, ($_.Length / 1MB), (Get-FileHash $_.FullName -Algorithm SHA256).Hash
+          }
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: University-1.0.0-windows-x64-installers
+          path: |
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+          if-no-files-found: error
+
+      - name: Install with the NSIS installer (silent, current user)
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem "src-tauri/target/$env:TARGET/release/bundle/nsis/*-setup.exe" | Select-Object -First 1
+          Write-Host "Installing $($setup.Name)"
+          $p = Start-Process $setup.FullName -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Installer exited with $($p.ExitCode)" }
+          $exe = Join-Path $env:LOCALAPPDATA "University\University.exe"
+          if (!(Test-Path $exe)) { throw "University.exe was not installed at $exe" }
+          $lnk = Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter "University.lnk" | Select-Object -First 1
+          if (!$lnk) { throw "Start Menu shortcut was not created" }
+          Write-Host "Start Menu shortcut: $($lnk.FullName)"
+          $desk = Join-Path ([Environment]::GetFolderPath("Desktop")) "University.lnk"
+          if (!(Test-Path $desk)) { throw "Desktop shortcut was not created" }
+          $key = Get-ChildItem "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall" | Where-Object { (Get-ItemProperty $_.PSPath).DisplayName -eq "University" }
+          if (!$key) { throw "Uninstall entry (Apps & features) is missing" }
+          $props = Get-ItemProperty $key.PSPath
+          Write-Host "Apps & features: $($props.DisplayName) $($props.DisplayVersion) by $($props.Publisher)"
+          "E2E_APP=$exe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          # The installed app must not depend on development tools.
+          Get-ChildItem (Split-Path $exe) | Format-Table Name, Length
+
+      - name: Install WebDriver tools (test machine only)
+        shell: pwsh
+        run: |
+          cargo install tauri-driver --locked
+          cargo install --git https://github.com/chippers/msedgedriver-tool
+          & "$env:USERPROFILE\.cargo\bin\msedgedriver-tool.exe"
+          "NATIVE_DRIVER=$PWD\msedgedriver.exe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "TAURI_DRIVER=$env:USERPROFILE\.cargo\bin\tauri-driver.exe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: "E2E: onboarding, all pages in Arabic and English, restart, recovery"
+        env:
+          E2E_RESET_APPDATA: "1"
+        run: node e2e/smoke.mjs
+
+      - name: "E2E: files, PDFs, persistence, notifications, backup and restore"
+        if: always()
+        env:
+          E2E_RESET_APPDATA: "1"
+        run: node e2e/data.mjs
+
+      - name: Uninstall (silent) and verify
+        if: always()
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:LOCALAPPDATA "University"
+          if (!(Test-Path "$dir\uninstall.exe")) { throw "Uninstaller not found" }
+          Start-Process "$dir\uninstall.exe" -ArgumentList '/S' -Wait
+          for ($i = 0; $i -lt 30 -and (Test-Path "$dir\University.exe"); $i++) { Start-Sleep 1 }
+          if (Test-Path "$dir\University.exe") { throw "University.exe still present after uninstall" }
+          $lnk = Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter "University.lnk" -ErrorAction SilentlyContinue
+          if ($lnk) { throw "Start Menu shortcut still present after uninstall" }
+          if (Test-Path (Join-Path ([Environment]::GetFolderPath("Desktop")) "University.lnk")) { throw "Desktop shortcut still present after uninstall" }
+          # Uninstalling must never delete the user's workspace.
+          if (!(Test-Path "e2e/.tmp/data/*/AppData/database.sqlite")) { throw "Workspace data was removed by the uninstaller" }
+          Write-Host "Uninstalled; workspace data kept."
+
+      - name: MSI install, launch and uninstall
+        if: always()
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem "src-tauri/target/$env:TARGET/release/bundle/msi/*.msi" | Select-Object -First 1
+          $p = Start-Process msiexec.exe -ArgumentList "/i `"$($msi.FullName)`" /qn /l*v msi-install.log" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content msi-install.log -Tail 50; throw "MSI install failed ($($p.ExitCode))" }
+          $exe = Join-Path $env:ProgramFiles "University\University.exe"
+          if (!(Test-Path $exe)) { throw "MSI did not install $exe" }
+          $app = Start-Process $exe -PassThru
+          Start-Sleep 15
+          if ($app.HasExited) { throw "University exited right after launch (code $($app.ExitCode))" }
+          Write-Host "MSI build launched and is running (pid $($app.Id))."
+          Stop-Process -Id $app.Id -Force
+          Start-Sleep 3
+          $p = Start-Process msiexec.exe -ArgumentList "/x `"$($msi.FullName)`" /qn" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "MSI uninstall failed ($($p.ExitCode))" }
+          if (Test-Path $exe) { throw "MSI uninstall left University.exe behind" }
+
+      - name: Upload test screenshots and results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-e2e-results
+          path: |
+            e2e/.tmp/*/shots/*.png
+            e2e/.tmp/*/results.json
+            msi-install.log
+          if-no-files-found: ignore

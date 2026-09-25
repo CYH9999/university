@@ -216,7 +216,7 @@ export function ResearchPage() {
         description={t("research.lead")}
         actions={
           <>
-            <Button onClick={() => importFiles(subjectId)}>
+            <Button onClick={() => importFiles(subjectId)} data-testid="research-import">
               <Upload /> {t("research.importFiles")}
             </Button>
             <Button variant="primary" onClick={() => editor.create({ subjectId })}>

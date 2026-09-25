@@ -2,7 +2,7 @@
   "name": "unios",
   "private": true,
   "version": "1.0.0",
-  "description": "UniOS — offline-first university life manager for cybersecurity students",
+  "description": "University — offline-first university life manager for cybersecurity students",
   "type": "module",
   "scripts": {
     "dev": "vite",

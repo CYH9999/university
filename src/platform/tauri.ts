@@ -154,7 +154,8 @@ export const openApi = {
   file: (rel: string) => call<void>("fs_open", { rel }),
   reveal: (rel: string) => call<void>("fs_reveal", { rel }),
   url: (url: string) => call<void>("open_url", { url }),
-  externalPath: (path: string) => call<void>("open_external_path", { path }),
+  /** Shows a backup/export ZIP (possibly outside the workspace) in the file manager. */
+  revealBackup: (path: string) => call<void>("reveal_backup_file", { path }),
   absolutePath: (rel: string) => call<string>("fs_absolute_path", { rel }),
   readText: (rel: string) => call<string>("fs_read_text", { rel }),
   readExternalText: (path: string) => call<string>("fs_read_external_text", { path }),
@@ -214,13 +215,31 @@ export const backupApi = {
 };
 
 // ---------------------------------------------------------------- dialogs
+/**
+ * Test seam for the end-to-end tests: when a test has queued answers on this global, they are used
+ * instead of showing a native dialog. The app never sets it, and it grants nothing a script in the
+ * page could not already do through the backend commands.
+ */
+interface DialogAnswers {
+  open?: (string | string[] | null)[];
+  save?: (string | null)[];
+}
+function queuedAnswer(kind: keyof DialogAnswers): { value: string | string[] | null } | null {
+  const q = (globalThis as { __UNIVERSITY_E2E_DIALOGS__?: DialogAnswers }).__UNIVERSITY_E2E_DIALOGS__?.[kind];
+  return q && q.length ? { value: q.shift() ?? null } : null;
+}
+const openNative: typeof openDialog = (options) => {
+  const queued = queuedAnswer("open");
+  return (queued ? Promise.resolve(queued.value) : openDialog(options)) as ReturnType<typeof openDialog>;
+};
+
 export const dialogs = {
   async pickFolder(title?: string): Promise<string | null> {
-    const r = await openDialog({ directory: true, multiple: false, title });
+    const r = await openNative({ directory: true, multiple: false, title });
     return typeof r === "string" ? r : null;
   },
   async pickFiles(title?: string, extensions?: string[]): Promise<string[]> {
-    const r = await openDialog({
+    const r = await openNative({
       multiple: true,
       directory: false,
       title,
@@ -230,10 +249,12 @@ export const dialogs = {
     return Array.isArray(r) ? r : [r];
   },
   async pickFile(title: string, extensions: string[]): Promise<string | null> {
-    const r = await openDialog({ multiple: false, directory: false, title, filters: [{ name: extensions.join(", "), extensions }] });
+    const r = await openNative({ multiple: false, directory: false, title, filters: [{ name: extensions.join(", "), extensions }] });
     return typeof r === "string" ? r : null;
   },
   async saveFile(title: string, defaultPath: string, extensions: string[]): Promise<string | null> {
+    const queued = queuedAnswer("save");
+    if (queued) return typeof queued.value === "string" ? queued.value : null;
     return (await saveDialog({ title, defaultPath, filters: [{ name: extensions.join(", "), extensions }] })) ?? null;
   },
 };

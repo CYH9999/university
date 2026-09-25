@@ -28,7 +28,7 @@ export function Sidebar() {
         <img src="/logo.svg" alt="" className="size-7 shrink-0" />
         {!collapsed && (
           <div className="min-w-0 leading-tight">
-            <div className="text-sm font-semibold tracking-tight">UniOS</div>
+            <div className="text-sm font-semibold tracking-tight">University</div>
             <div className="truncate text-[10px] text-subtle">{t("app.tagline")}</div>
           </div>
         )}

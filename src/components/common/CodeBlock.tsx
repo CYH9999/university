@@ -14,7 +14,7 @@ function render(nodes: HastNode[] | undefined, key = "n"): React.ReactNode {
   });
 }
 
-/** Read-only, syntax-highlighted code. It can be copied but is never executed by UniOS. */
+/** Read-only, syntax-highlighted code. It can be copied but is never executed by the app. */
 export function CodeBlock({ code, language = "bash", className, compact }: { code: string; language?: string; className?: string; compact?: boolean }) {
   const { t } = useTranslation();
   const [copied, setCopied] = React.useState(false);

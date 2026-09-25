@@ -1,14 +1,16 @@
 [package]
 name = "unios"
 version = "1.0.0"
-description = "UniOS — offline-first university life manager"
-authors = ["UniOS"]
+description = "University — offline-first university life manager"
+authors = ["University"]
 edition = "2021"
 rust-version = "1.77"
 
 [lib]
 name = "unios_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+# Desktop-only app: the `staticlib`/`cdylib` outputs of the Tauri template exist for Android/iOS.
+# The cdylib also breaks MinGW builds of Windows (too many exported symbols for a DLL).
+crate-type = ["rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -20,7 +22,7 @@ tauri-plugin-opener = "2"
 tauri-plugin-notification = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-rusqlite = { version = "0.37", features = ["bundled"] }
+rusqlite = { version = "0.37", features = ["bundled", "hooks", "limits"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 sha2 = "0.10"
 hex = "0.4"

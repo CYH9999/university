@@ -188,8 +188,9 @@ function Notifications() {
             <Button size="sm" onClick={() => void refetch()}>{t("settings.checkPermission")}</Button>
             <Button
               size="sm"
+              data-testid="notify-test"
               onClick={async () => {
-                const ok = await desktopNotify.send("UniOS", t("settings.testBody"));
+                const ok = await desktopNotify.send("University", t("settings.testBody"));
                 if (ok) toast.success(t("settings.testSent"));
                 else toast.error(t("settings.testFailed"));
               }}

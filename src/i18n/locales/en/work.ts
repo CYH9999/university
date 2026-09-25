@@ -184,7 +184,7 @@ export const work = {
     duplicateSkipped_other: "{{count}} duplicate files skipped",
     missing: "Missing",
     missingHint: "This file is no longer at its recorded location.",
-    missingViewHint: "Files that were moved or deleted outside UniOS. Relink them to their new location or forget them.",
+    missingViewHint: "Files that were moved or deleted outside University. Relink them to their new location or forget them.",
     noMissing: "No missing files",
     checkAgain: "Check again",
     relink: "Relink file",

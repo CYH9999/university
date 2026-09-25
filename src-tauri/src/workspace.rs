@@ -267,7 +267,7 @@ pub fn create(root: &Path, name: &str, allow_non_empty: bool, app_version: &str)
         format: MANIFEST_FORMAT.into(),
         format_version: MANIFEST_VERSION,
         id: uuid::Uuid::new_v4().to_string(),
-        name: if name.trim().is_empty() { "UniOS Workspace".into() } else { name.trim().to_string() },
+        name: if name.trim().is_empty() { "University Workspace".into() } else { name.trim().to_string() },
         created_at: chrono::Utc::now().to_rfc3339(),
         app_version: app_version.into(),
     };
@@ -306,10 +306,10 @@ pub fn log_line(root: &Path, level: &str, message: &str) {
     }
 }
 
-const README_TEXT: &str = "UniOS Workspace\r
-===============\r
+const README_TEXT: &str = "University Workspace\r
+====================\r
 \r
-This folder is your UniOS Workspace. Everything the app stores lives here and belongs to you.\r
+This folder is your University Workspace. Everything the app stores lives here and belongs to you.\r
 \r
 AppData/            Database (database.sqlite), settings, workspace info and logs. Do not edit by hand.\r
 Subjects/           Files uploaded to your subjects (lectures, PDFs, slides...).\r
@@ -318,11 +318,11 @@ Research Library/   Research papers, books and other resources.\r
 Cybersecurity Lab/  Lab files, CTF attachments and screenshots.\r
 Attachments/        Files attached to notes, tasks, deadlines, expenses and other items.\r
 Whiteboards/        Whiteboard drawings (.excalidraw files).\r
-Backups/            Backup archives (.zip) created by UniOS.\r
+Backups/            Backup archives (.zip) created by University.\r
 Exports/            Data you exported (JSON, CSV, Markdown, HTML, ZIP).\r
 Trash/              Deleted files. They can be restored from the Files screen.\r
 \r
-مساحة العمل الخاصة بـ UniOS: جميع بياناتك وملفاتك محفوظة داخل هذا المجلد.\r
+مساحة العمل الخاصة بتطبيق University: جميع بياناتك وملفاتك محفوظة داخل هذا المجلد.\r
 ";
 
 #[cfg(test)]

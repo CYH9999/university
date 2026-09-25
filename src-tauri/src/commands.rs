@@ -354,17 +354,17 @@ macro_rules! with_conn {
 
 #[tauri::command]
 pub async fn db_query(state: State<'_, AppState>, sql: String, params: Vec<Value>) -> AppResult<Vec<Map<String, Value>>> {
-    with_conn!(state, conn, db::query(conn, &sql, &params))
+    with_conn!(state, conn, db::with_frontend_guard(conn, |c| db::query(c, &sql, &params)))
 }
 
 #[tauri::command]
 pub async fn db_execute(state: State<'_, AppState>, sql: String, params: Vec<Value>) -> AppResult<usize> {
-    with_conn!(state, conn, db::execute(conn, &sql, &params))
+    with_conn!(state, conn, db::with_frontend_guard(conn, |c| db::execute(c, &sql, &params)))
 }
 
 #[tauri::command]
 pub async fn db_batch(state: State<'_, AppState>, statements: Vec<Statement>) -> AppResult<BatchResult> {
-    with_conn!(state, conn, db::batch(conn, &statements))
+    with_conn!(state, conn, db::with_frontend_guard(conn, |c| db::batch(c, &statements)))
 }
 
 // ---------------------------------------------------------------------------
@@ -464,7 +464,16 @@ pub async fn fs_read_text(state: State<'_, AppState>, rel: String) -> AppResult<
 
 #[tauri::command]
 pub async fn fs_read_external_text(path: String) -> AppResult<String> {
-    let meta = std::fs::metadata(&path)?;
+    // Only used to read a JSON export the user picked in the open dialog.
+    let p = Path::new(&path);
+    let is_json = p.extension().map(|e| e.eq_ignore_ascii_case("json")).unwrap_or(false);
+    if !p.is_absolute() || !is_json {
+        return Err(AppError::coded("path.invalid", "Only .json files can be read"));
+    }
+    let meta = std::fs::metadata(p)?;
+    if !meta.is_file() {
+        return Err(AppError::coded("path.invalid", "Not a file"));
+    }
     if meta.len() > 64 * 1024 * 1024 {
         return Err(AppError::coded("fs.too_large", "File is too large"));
     }
@@ -493,7 +502,7 @@ pub async fn fs_open(app: AppHandle, state: State<'_, AppState>, rel: String) ->
         return Err(AppError::coded("io.not_found", "The file no longer exists"));
     }
     if is_blocked_for_open(&p) {
-        return Err(AppError::coded("open.blocked", "Executable files are never opened from UniOS"));
+        return Err(AppError::coded("open.blocked", "Executable files are never opened from University"));
     }
     app.opener()
         .open_path(p.to_string_lossy().to_string(), None::<&str>)
@@ -508,20 +517,19 @@ pub async fn fs_reveal(app: AppHandle, state: State<'_, AppState>, rel: String) 
     app.opener().reveal_item_in_dir(target).map_err(|e| AppError::coded("open.failed", e.to_string()))
 }
 
+/// Shows a backup or exported archive (which may live outside the Workspace, e.g. a ZIP export)
+/// in the file manager. Only existing `.zip` files are accepted and nothing is opened or run.
 #[tauri::command]
-pub async fn open_external_path(app: AppHandle, path: String) -> AppResult<()> {
+pub async fn reveal_backup_file(app: AppHandle, path: String) -> AppResult<()> {
     let p = PathBuf::from(&path);
-    if !p.exists() {
-        return Err(AppError::coded("io.not_found", "The path no longer exists"));
+    let is_zip = p.extension().map(|e| e.eq_ignore_ascii_case("zip")).unwrap_or(false);
+    if !p.is_absolute() || !is_zip {
+        return Err(AppError::coded("path.invalid", "Only backup archives can be shown"));
     }
-    if p.is_file() && is_blocked_for_open(&p) {
-        return Err(AppError::coded("open.blocked", "Executable files are never opened from UniOS"));
+    if !p.is_file() {
+        return Err(AppError::coded("io.not_found", "The backup no longer exists"));
     }
-    if p.is_file() {
-        app.opener().reveal_item_in_dir(p).map_err(|e| AppError::coded("open.failed", e.to_string()))
-    } else {
-        app.opener().open_path(path, None::<&str>).map_err(|e| AppError::coded("open.failed", e.to_string()))
-    }
+    app.opener().reveal_item_in_dir(p).map_err(|e| AppError::coded("open.failed", e.to_string()))
 }
 
 /// Opens a web link in the default browser. Only explicit http(s)/mailto links are allowed.
@@ -565,7 +573,15 @@ pub async fn backup_create(
         with_conn!(state, conn, db::snapshot(conn, &snap))?;
     }
     let dest = match dest_path {
-        Some(p) => PathBuf::from(p),
+        // ZIP export to a location chosen in the save dialog.
+        Some(p) => {
+            let p = PathBuf::from(p);
+            let is_zip = p.extension().map(|e| e.eq_ignore_ascii_case("zip")).unwrap_or(false);
+            if !p.is_absolute() || !is_zip || !p.parent().map(|d| d.is_dir()).unwrap_or(false) {
+                return Err(AppError::coded("path.invalid", "The export must be a .zip file in an existing folder"));
+            }
+            p
+        }
         None => root.join("Backups").join(backup::backup_file_name(kind, &label)),
     };
     let version = app_version(&app);

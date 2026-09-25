@@ -127,7 +127,7 @@ export function SubjectFilesPanel({ subject }: { subject: Subject }) {
       <div className="card flex flex-wrap items-center gap-3 p-3">
         <span className="text-sm text-muted">{t("files.uploadInto")}</span>
         <NativeSelect className="w-44" value={kind} onChange={(e) => setKind(e.target.value as SubjectFolderKind)} options={SUBJECT_SUBFOLDERS.map((k) => ({ value: k, label: t(`files.subjectFolders.${k}`) }))} />
-        <Button variant="primary" onClick={upload} loading={busy}>
+        <Button variant="primary" onClick={upload} loading={busy} data-testid="subject-upload">
           <Upload /> {t("files.upload")}
         </Button>
         <Button variant="ghost" onClick={openFolder} className="ms-auto">

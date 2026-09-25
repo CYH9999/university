@@ -97,8 +97,10 @@ export function safeFileName(name: string, fallback = "untitled"): string {
     .replace(/[. ]+$/g, "")
     .replace(/^\.+/, "");
   if (!s) s = fallback;
-  if (/^(con|prn|aux|nul|com\d|lpt\d)(\..*)?$/i.test(s)) s = `_${s}`;
-  return s.slice(0, 120);
+  // Windows device names stay reserved with an extension or trailing spaces ("con .txt").
+  if (/^(con|prn|aux|nul|com\d|lpt\d)\s*(\..*)?$/i.test(s)) s = `_${s}`;
+  // Truncation must not leave a trailing dot or space, which Windows strips from names.
+  return s.slice(0, 120).replace(/[. ]+$/g, "") || fallback;
 }
 
 export function formatBytes(bytes: number, locale = "en"): string {

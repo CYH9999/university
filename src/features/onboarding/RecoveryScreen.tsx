@@ -63,7 +63,7 @@ export function RecoveryScreen() {
           description: empty ? t("recovery.createInFolderBody", { path: p }) : t("onboarding.nonEmptyBody", { path: p }),
           confirmLabel: t("onboarding.createConfirm"),
         });
-        if (ok) await openChecked(await workspaceApi.create(p, "UniOS Workspace", true));
+        if (ok) await openChecked(await workspaceApi.create(p, "University Workspace", true));
         return;
       }
       setError(`${t(`workspace.status.${c.status}`)} — ${p}`);

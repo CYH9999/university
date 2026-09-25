@@ -150,7 +150,7 @@ export function GradeEditor({ subjectId }: { subjectId: string }) {
         )}
       </div>
       <div className="flex gap-2">
-        <Button size="sm" onClick={add}>
+        <Button size="sm" onClick={add} data-testid="grade-add">
           <Plus /> {t("grades.addItem")}
         </Button>
         <Menu>

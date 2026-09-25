@@ -432,3 +432,22 @@ describe("attendance", () => {
     expect(drafts.some((d) => d.title === "notif.attendanceExceeded")).toBe(true);
   });
 });
+
+describe("Windows-safe file names", () => {
+  it("never produces names Windows would reject or rewrite", async () => {
+    const { safeFileName } = await import("../src/core/utils/text");
+    expect(safeFileName("CS401 - Computer Security")).toBe("CS401 - Computer Security");
+    expect(safeFileName("a/b\\c:d*?")).toBe("a_b_c_d__");
+    expect(safeFileName("CON")).toBe("_CON");
+    expect(safeFileName("con .txt")).toBe("_con .txt");
+    expect(safeFileName("nul.pdf")).toBe("_nul.pdf");
+    expect(safeFileName("Notes. ")).toBe("Notes");
+    expect(safeFileName("...")).toBe("untitled");
+    expect(safeFileName("شبكات الحاسوب")).toBe("شبكات الحاسوب");
+    // Truncation never leaves a trailing dot or space.
+    const long = `${"x".repeat(119)} tail`;
+    const out = safeFileName(long);
+    expect(out.length).toBeLessThanOrEqual(120);
+    expect(out).not.toMatch(/[. ]$/);
+  });
+});

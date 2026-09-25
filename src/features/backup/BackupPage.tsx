@@ -18,7 +18,7 @@ import { fmtDateTime, fmtRelative, fmtBytes } from "@/lib/format";
 const KIND_ICON = { full: Archive, database: Database, attachments: Paperclip } as const;
 
 function reveal(path: string) {
-  void openApi.externalPath(path).catch((e) => toast.error(errorMessage(e)));
+  void openApi.revealBackup(path).catch((e) => toast.error(errorMessage(e)));
 }
 
 export function BackupPage() {
@@ -51,7 +51,7 @@ export function BackupPage() {
 
   const exportZip = async () => {
     const stamp = new Date().toISOString().slice(0, 10);
-    const dest = await dialogs.saveFile(t("backup.exportZip"), `UniOS-Workspace-${stamp}.zip`, ["zip"]);
+    const dest = await dialogs.saveFile(t("backup.exportZip"), `University-Workspace-${stamp}.zip`, ["zip"]);
     if (!dest) return;
     setBusy("export");
     try {
@@ -129,7 +129,7 @@ export function BackupPage() {
                 {(["full", "database", "attachments"] as BackupKind[]).map((k) => {
                   const Icon = KIND_ICON[k];
                   return (
-                    <Button key={k} variant={k === "full" ? "primary" : "secondary"} loading={busy === k} disabled={!!busy} onClick={() => create(k)} className="h-auto flex-col gap-1 py-3">
+                    <Button key={k} variant={k === "full" ? "primary" : "secondary"} loading={busy === k} disabled={!!busy} onClick={() => create(k)} data-testid={`backup-create-${k}`} className="h-auto flex-col gap-1 py-3">
                       <Icon className="size-5" />
                       <span>{t(`backup.kind.${k}`)}</span>
                     </Button>

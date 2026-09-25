@@ -208,7 +208,7 @@ export const work = {
     duplicateSkipped_other: "تُخطّي {{count}} ملف مكرر",
     missing: "مفقود",
     missingHint: "لم يعد هذا الملف في موقعه المسجّل.",
-    missingViewHint: "ملفات نُقلت أو حُذفت من خارج UniOS. اربطها بموقعها الجديد أو أزل سجلها.",
+    missingViewHint: "ملفات نُقلت أو حُذفت من خارج University. اربطها بموقعها الجديد أو أزل سجلها.",
     noMissing: "لا توجد ملفات مفقودة",
     checkAgain: "إعادة الفحص",
     relink: "إعادة ربط الملف",

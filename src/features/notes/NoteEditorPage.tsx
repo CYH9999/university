@@ -245,6 +245,7 @@ function Editor({ note }: { note: Note }) {
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className={cn("mx-auto px-8 pb-24 pt-6", editorWidth === "wide" ? "max-w-6xl" : "max-w-3xl")}>
             <input
+              data-testid="note-title"
               value={title}
               autoFocus={fresh}
               onFocus={(e) => fresh && title === i18n.t("notes.untitled") && e.currentTarget.select()}

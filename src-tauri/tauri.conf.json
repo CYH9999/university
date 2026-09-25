@@ -1,8 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "UniOS",
+  "productName": "University",
+  "mainBinaryName": "University",
   "version": "1.0.0",
-  "identifier": "app.unios.desktop",
+  "identifier": "app.university.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "UniOS",
+        "title": "University",
         "width": 1440,
         "height": 900,
         "minWidth": 1024,
@@ -33,10 +34,13 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": [
+      "nsis",
+      "msi"
+    ],
     "category": "Education",
-    "shortDescription": "Offline-first university life manager",
-    "longDescription": "UniOS keeps courses, notes, deadlines, files, projects, grades and cybersecurity learning in a local Workspace folder that you own.",
+    "shortDescription": "University — offline-first university life manager",
+    "longDescription": "University keeps courses, notes, deadlines, files, projects, grades and cybersecurity learning in a local Workspace folder that you own. It works fully offline.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -45,10 +49,29 @@
       "icons/icon.ico"
     ],
     "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "allowDowngrades": false,
       "nsis": {
-        "languages": ["English", "Arabic"],
-        "displayLanguageSelector": true
+        "installMode": "currentUser",
+        "languages": [
+          "English",
+          "Arabic"
+        ],
+        "displayLanguageSelector": true,
+        "installerIcon": "icons/icon.ico",
+        "compression": "lzma"
+      },
+      "wix": {
+        "language": [
+          "en-US"
+        ],
+        "upgradeCode": "537036fd-92bd-4af3-96f0-0b6049059907"
       }
-    }
+    },
+    "publisher": "University",
+    "copyright": "© 2026 University. All rights reserved."
   }
 }

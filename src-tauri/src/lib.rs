@@ -1,4 +1,4 @@
-//! UniOS desktop shell. The Rust side is intentionally thin: it owns the Workspace folder,
+//! University desktop shell. The Rust side is intentionally thin: it owns the Workspace folder,
 //! the SQLite connection, safe filesystem access and backups. Business logic lives in the
 //! TypeScript application layer so it can be reused by a future mobile client.
 pub mod backup;
@@ -76,7 +76,7 @@ pub fn run() {
             commands::fs_absolute_path,
             commands::fs_open,
             commands::fs_reveal,
-            commands::open_external_path,
+            commands::reveal_backup_file,
             commands::open_url,
             commands::backup_create,
             commands::backup_list,
@@ -89,7 +89,7 @@ pub fn run() {
             commands::backup_prune,
         ])
         .build(tauri::generate_context!())
-        .expect("error while building UniOS")
+        .expect("error while building University")
         .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
                 // Close the database cleanly on exit.

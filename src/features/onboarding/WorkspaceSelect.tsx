@@ -13,6 +13,7 @@ import { useQ } from "@/app/query";
 import { fmtDateTime, fmtBytes } from "@/lib/format";
 import i18n from "@/i18n";
 import { cn } from "@/lib/cn";
+import { useSettings } from "@/app/settings";
 
 function joinPath(parent: string, name: string): string {
   const sep = parent.includes("\\") ? "\\" : "/";
@@ -28,7 +29,10 @@ export function LanguageToggle() {
       onClick={() => {
         const next = inst.language === "ar" ? "en" : "ar";
         applyLanguage(next);
-        void pointerApi.setUi({ language: next }).catch(() => undefined);
+        // During onboarding a workspace is already open: keep its settings in sync so the choice
+        // survives a restart (before a workspace exists, only the app-level pointer is updated).
+        if (useSettings.getState().loaded) useSettings.getState().update({ language: next });
+        else void pointerApi.setUi({ language: next }).catch(() => undefined);
       }}
     >
       <Languages /> {inst.language === "ar" ? "English" : "العربية"}
@@ -43,7 +47,7 @@ export function OnboardingFrame({ children, step, total, footer }: { children: R
       <header className="flex h-14 items-center justify-between border-b border-border px-6">
         <div className="flex items-center gap-2.5">
           <img src="/logo.svg" alt="" className="size-7" />
-          <span className="font-semibold tracking-tight">UniOS</span>
+          <span className="font-semibold tracking-tight">University</span>
           <span className="text-xs text-subtle">· {t("app.tagline")}</span>
         </div>
         <div className="flex items-center gap-2">
@@ -153,7 +157,7 @@ function PickWorkspace({ onBack }: { onBack?: () => void }) {
   const [restoreZip, setRestoreZip] = React.useState<{ path: string; report: ValidationReport } | null>(null);
   const { data: pointer } = useQ(["pointer"], () => pointerApi.read());
 
-  const target = parent ? joinPath(parent, name || "UniOS Workspace") : "";
+  const target = parent ? joinPath(parent, name || "University Workspace") : "";
 
   const openPath = async (path: string) => {
     setError(null);
@@ -181,7 +185,7 @@ function PickWorkspace({ onBack }: { onBack?: () => void }) {
         const ok = await confirm({ title: t("onboarding.nonEmptyTitle"), description: t("onboarding.nonEmptyBody", { path }), confirmLabel: t("onboarding.useAnyway") });
         if (!ok) return;
       }
-      const check = await workspaceApi.create(path, name || "UniOS Workspace", true);
+      const check = await workspaceApi.create(path, name || "University Workspace", true);
       await openChecked(check);
     } catch (e) {
       const code = (e as { code?: string }).code;
@@ -286,7 +290,7 @@ function PickWorkspace({ onBack }: { onBack?: () => void }) {
               <Keyboard className="size-3.5" /> {t("onboarding.typePath")}
             </div>
             <div className="flex gap-2">
-              <Input value={manual} onChange={(e) => setManual(e.target.value)} placeholder="D:\\University\\UniOS Workspace" dir="ltr" className="font-mono text-xs" data-testid="manual-path" />
+              <Input value={manual} onChange={(e) => setManual(e.target.value)} placeholder="D:\\University Workspace" dir="ltr" className="font-mono text-xs" data-testid="manual-path" />
               <Button onClick={() => manual.trim() && openPath(manual.trim())} data-testid="manual-open">
                 {t("common.open")}
               </Button>

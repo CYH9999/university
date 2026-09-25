@@ -1,6 +1,8 @@
 //! SQLite access layer. The application layer (TypeScript) owns the schema and
 //! the business logic; this module provides a small, transactional, typed bridge.
 use crate::error::{AppError, AppResult};
+use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
+use rusqlite::limits::Limit;
 use rusqlite::types::{Value as SqlValue, ValueRef};
 use rusqlite::{params_from_iter, Connection, OpenFlags};
 use serde::{Deserialize, Serialize};
@@ -121,6 +123,39 @@ pub fn batch(conn: &mut Connection, statements: &[Statement]) -> AppResult<Batch
     Ok(BatchResult { changes })
 }
 
+/// Read-only pragmas allowed for frontend SQL: schema introspection (the JSON importer) and
+/// `data_version`, which FTS5 queries internally.
+const FRONTEND_PRAGMAS: &[&str] = &["table_info", "table_xinfo", "foreign_key_list", "index_list", "index_info", "data_version"];
+
+/// Authorizer for SQL sent by the frontend: it may read and write the workspace database,
+/// but never attach other database files, change connection-level pragmas or load extensions.
+fn frontend_authorizer(ctx: AuthContext<'_>) -> Authorization {
+    match ctx.action {
+        AuthAction::Attach { .. } | AuthAction::Detach { .. } => Authorization::Deny,
+        AuthAction::Pragma { pragma_name, .. } => {
+            if FRONTEND_PRAGMAS.contains(&pragma_name.to_ascii_lowercase().as_str()) {
+                Authorization::Allow
+            } else {
+                Authorization::Deny
+            }
+        }
+        AuthAction::Function { function_name } if function_name.eq_ignore_ascii_case("load_extension") => Authorization::Deny,
+        _ => Authorization::Allow,
+    }
+}
+
+/// Runs frontend-supplied SQL with the authorizer installed and no database attachments
+/// allowed (this also rules out `VACUUM INTO`, which writes files through an attachment).
+/// Backend-internal operations such as snapshots run outside the guard.
+pub fn with_frontend_guard<T>(conn: &mut Connection, f: impl FnOnce(&mut Connection) -> AppResult<T>) -> AppResult<T> {
+    let previous = conn.set_limit(Limit::SQLITE_LIMIT_ATTACHED, 0).unwrap_or(10);
+    conn.authorizer(Some(frontend_authorizer));
+    let result = f(conn);
+    conn.authorizer(None::<fn(AuthContext<'_>) -> Authorization>);
+    let _ = conn.set_limit(Limit::SQLITE_LIMIT_ATTACHED, previous);
+    result
+}
+
 /// Writes a consistent snapshot of the live database to `dest` (VACUUM INTO).
 pub fn snapshot(conn: &Connection, dest: &Path) -> AppResult<()> {
     if dest.exists() {
@@ -180,6 +215,40 @@ mod tests {
         let rows = query(&c, "SELECT * FROM t ORDER BY id", &[]).unwrap();
         assert_eq!(rows.len(), 1, "failed batch must roll back completely");
         assert_eq!(rows[0]["n"], json!(1));
+    }
+
+    #[test]
+    fn frontend_guard_blocks_file_access_outside_the_database() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut conn = open_connection(&dir.path().join("db.sqlite")).unwrap();
+        let outside = dir.path().join("outside.sqlite");
+        let outside_s = outside.to_string_lossy().to_string();
+        let blocked = [
+            format!("ATTACH DATABASE '{outside_s}' AS x"),
+            format!("VACUUM INTO '{outside_s}'"),
+            "PRAGMA writable_schema = ON".to_string(),
+            "PRAGMA journal_mode = OFF".to_string(),
+            "SELECT load_extension('x')".to_string(),
+        ];
+        for sql in &blocked {
+            let r = with_frontend_guard(&mut conn, |c| execute(c, sql, &[]).map(|_| ()));
+            assert!(r.is_err(), "should be blocked: {sql}");
+        }
+        assert!(!outside.exists());
+        // Normal application SQL still works, including schema introspection and FTS5.
+        with_frontend_guard(&mut conn, |c| {
+            execute(c, "CREATE TABLE t (id TEXT PRIMARY KEY, name TEXT)", &[])?;
+            execute(c, "CREATE VIRTUAL TABLE s USING fts5(body, tokenize = 'trigram')", &[])?;
+            execute(c, "INSERT INTO t VALUES ('1', 'a')", &[])?;
+            batch(c, &[Statement { sql: "INSERT INTO t VALUES ('2', 'b'); INSERT INTO s(body) VALUES ('hello');".into(), params: vec![], script: true }])?;
+            assert_eq!(query(c, "PRAGMA table_info(t)", &[])?.len(), 2);
+            assert_eq!(query(c, "SELECT * FROM s WHERE s MATCH 'ell'", &[])?.len(), 1);
+            Ok(())
+        })
+        .unwrap();
+        // The backend's own snapshot (VACUUM INTO) still works outside the guard.
+        snapshot(&conn, &dir.path().join("snap.sqlite")).unwrap();
+        assert!(dir.path().join("snap.sqlite").exists());
     }
 
     #[test]

@@ -40,7 +40,7 @@ export interface MigrationResult {
 export async function runMigrations(db: Database): Promise<MigrationResult> {
   const from = await currentSchemaVersion(db);
   if (from > LATEST_SCHEMA_VERSION) {
-    throw Object.assign(new Error("The workspace database was created by a newer version of UniOS."), {
+    throw Object.assign(new Error("The workspace database was created by a newer version of University."), {
       code: "db.newer_schema",
     });
   }
