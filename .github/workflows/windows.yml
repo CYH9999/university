@@ -38,6 +38,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: "src-tauri -> target"
+          cache-on-failure: true
 
       - name: Install dependencies
         run: npm ci
@@ -93,14 +94,33 @@ jobs:
           # The installed app must not depend on development tools.
           Get-ChildItem (Split-Path $exe) | Format-Table Name, Length
 
+      - name: Launch the installed app (no test tools involved)
+        shell: pwsh
+        run: |
+          $since = Get-Date
+          $p = Start-Process $env:E2E_APP -PassThru
+          Start-Sleep 20
+          $webviews = @(Get-Process msedgewebview2 -ErrorAction SilentlyContinue).Count
+          if ($p.HasExited) {
+            Write-Host "University exited with code $($p.ExitCode)"
+            Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = $since } -ErrorAction SilentlyContinue |
+              Where-Object { $_.LevelDisplayName -in 'Error', 'Critical' } | Select-Object -First 5 | Format-List TimeCreated, ProviderName, Message
+            throw "University did not keep running after launch"
+          }
+          $proc = Get-Process -Id $p.Id
+          Write-Host "University is running: pid $($p.Id), window '$($proc.MainWindowTitle)', responding=$($proc.Responding), WebView2 processes=$webviews"
+          if ($proc.MainWindowTitle -ne "University") { throw "Main window 'University' not found" }
+          if ($webviews -lt 1) { throw "WebView2 did not start" }
+          Stop-Process -Id $p.Id -Force
+          Start-Sleep 3
+
       - name: Install WebDriver tools (test machine only)
         shell: pwsh
         run: |
-          cargo install tauri-driver --locked
+          # msedgedriver matching the installed WebView2 runtime (driven directly by e2e/lib.mjs).
           cargo install --git https://github.com/chippers/msedgedriver-tool
           & "$env:USERPROFILE\.cargo\bin\msedgedriver-tool.exe"
           "NATIVE_DRIVER=$PWD\msedgedriver.exe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          "TAURI_DRIVER=$env:USERPROFILE\.cargo\bin\tauri-driver.exe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: "E2E: onboarding, all pages in Arabic and English, restart, recovery"
         timeout-minutes: 30
@@ -121,6 +141,7 @@ jobs:
         run: |
           $dir = Join-Path $env:LOCALAPPDATA "University"
           if (!(Test-Path "$dir\uninstall.exe")) { throw "Uninstaller not found" }
+          $workspacesBefore = @(Get-ChildItem e2e/.tmp -Recurse -Filter database.sqlite -ErrorAction SilentlyContinue).Count
           Start-Process "$dir\uninstall.exe" -ArgumentList '/S' -Wait
           for ($i = 0; $i -lt 30 -and (Test-Path "$dir\University.exe"); $i++) { Start-Sleep 1 }
           if (Test-Path "$dir\University.exe") { throw "University.exe still present after uninstall" }
@@ -128,18 +149,25 @@ jobs:
           if ($lnk) { throw "Start Menu shortcut still present after uninstall" }
           if (Test-Path (Join-Path ([Environment]::GetFolderPath("Desktop")) "University.lnk")) { throw "Desktop shortcut still present after uninstall" }
           # Uninstalling must never delete the user's workspace.
-          if (!(Test-Path "e2e/.tmp/data/*/AppData/database.sqlite")) { throw "Workspace data was removed by the uninstaller" }
-          Write-Host "Uninstalled; workspace data kept."
+          $workspacesAfter = @(Get-ChildItem e2e/.tmp -Recurse -Filter database.sqlite -ErrorAction SilentlyContinue).Count
+          if ($workspacesAfter -ne $workspacesBefore) { throw "Workspace data changed during uninstall ($workspacesBefore -> $workspacesAfter databases)" }
+          Write-Host "Uninstalled; $workspacesAfter workspace database(s) kept."
 
       - name: MSI install, launch and uninstall
         if: success() || failure()
         shell: pwsh
         run: |
           $msi = Get-ChildItem "src-tauri/target/$env:TARGET/release/bundle/msi/*.msi" | Select-Object -First 1
+          Write-Host "Installing $($msi.Name)"
           $p = Start-Process msiexec.exe -ArgumentList "/i `"$($msi.FullName)`" /qn /l*v msi-install.log" -Wait -PassThru
-          if ($p.ExitCode -ne 0) { Get-Content msi-install.log -Tail 50; throw "MSI install failed ($($p.ExitCode))" }
-          $exe = Join-Path $env:ProgramFiles "University\University.exe"
-          if (!(Test-Path $exe)) { throw "MSI did not install $exe" }
+          Write-Host "msiexec exit code: $($p.ExitCode)"
+          Get-Content msi-install.log | Select-String -Pattern "Return value 3|Error|INSTALLDIR|Product:|Installation success|MainExecutable|Windows Installer (re)?installed" | Select-Object -Last 25
+          if ($p.ExitCode -ne 0) { throw "MSI install failed ($($p.ExitCode))" }
+          $entry = Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*", "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq "University" } | Select-Object -First 1
+          Write-Host "Apps & features (MSI): $($entry.DisplayName) $($entry.DisplayVersion) at '$($entry.InstallLocation)'"
+          $exe = @(Get-ChildItem "$env:ProgramFiles\University", "${env:ProgramFiles(x86)}\University", $entry.InstallLocation -Filter University.exe -Recurse -ErrorAction SilentlyContinue)[0].FullName
+          if (!$exe) { throw "MSI did not install University.exe" }
+          Write-Host "Installed: $exe"
           $app = Start-Process $exe -PassThru
           Start-Sleep 15
           if ($app.HasExited) { throw "University exited right after launch (code $($app.ExitCode))" }

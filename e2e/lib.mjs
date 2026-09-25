@@ -46,16 +46,27 @@ export function createRun(name) {
     if (base) rmSync(join(base, identifier), { recursive: true, force: true });
   }
 
-  const driverPath = process.env.TAURI_DRIVER || (existsSync(join(homedir(), ".cargo/bin/tauri-driver")) ? join(homedir(), ".cargo/bin/tauri-driver") : "tauri-driver");
-  const driverArgs = process.env.NATIVE_DRIVER ? ["--native-driver", process.env.NATIVE_DRIVER] : [];
-  // On Linux the app's config is isolated in a throwaway HOME; Windows uses %APPDATA% (see E2E_RESET_APPDATA).
-  const env = isWindows ? { ...process.env } : { ...process.env, HOME: home, XDG_CONFIG_HOME: join(home, ".config"), XDG_DATA_HOME: join(home, ".local/share") };
+  // Linux: tauri-driver in front of WebKitWebDriver. Windows: msedgedriver is driven directly
+  // (that is all tauri-driver does there), which also gives verbose driver logs.
+  const edgeDirect = isWindows && !!process.env.NATIVE_DRIVER;
   const driverLog = join(tmp, "driver.log");
   const logFd = openSync(driverLog, "a");
-  const driver = spawn(driverPath, driverArgs, { env, stdio: ["ignore", logFd, logFd] });
+  let driver;
+  if (edgeDirect) {
+    driver = spawn(process.env.NATIVE_DRIVER, ["--port=4444", "--verbose", `--log-path=${driverLog}`], { stdio: ["ignore", logFd, logFd] });
+  } else {
+    const driverPath = process.env.TAURI_DRIVER || (existsSync(join(homedir(), ".cargo/bin/tauri-driver")) ? join(homedir(), ".cargo/bin/tauri-driver") : "tauri-driver");
+    const driverArgs = process.env.NATIVE_DRIVER ? ["--native-driver", process.env.NATIVE_DRIVER] : [];
+    // On Linux the app's config is isolated in a throwaway HOME; Windows uses %APPDATA% (see E2E_RESET_APPDATA).
+    const env = isWindows ? { ...process.env } : { ...process.env, HOME: home, XDG_CONFIG_HOME: join(home, ".config"), XDG_DATA_HOME: join(home, ".local/share") };
+    driver = spawn(driverPath, driverArgs, { env, stdio: ["ignore", logFd, logFd] });
+  }
+  const capabilities = edgeDirect
+    ? { alwaysMatch: { browserName: "webview2", "ms:edgeOptions": { binary: app, webviewOptions: {} } } }
+    : { alwaysMatch: { "tauri:options": { application: app }, browserName: "wry" } };
   const driverTail = () => {
     try {
-      return readFileSync(driverLog, "utf8").split(/\r?\n/).slice(-40).join("\n");
+      return readFileSync(driverLog, "utf8").split(/\r?\n/).slice(-60).join("\n");
     } catch {
       return "";
     }
@@ -154,7 +165,7 @@ export function createRun(name) {
     let last = null;
     while (Date.now() < end) {
       try {
-        const v = await req("POST", "/session", { capabilities: { alwaysMatch: { "tauri:options": { application: app }, browserName: "wry" } } });
+        const v = await req("POST", "/session", { capabilities });
         sid = v.sessionId;
         log("session started");
         return;
@@ -163,7 +174,7 @@ export function createRun(name) {
         await sleep(1000);
       }
     }
-    console.log(`--- tauri-driver log (tail) ---\n${driverTail()}\n---`);
+    console.log(`--- WebDriver log (tail) ---\n${driverTail()}\n---`);
     throw new Error(`could not start WebDriver session: ${last?.message ?? "timeout"}`);
   }
   async function endSession() {
@@ -214,7 +225,7 @@ export function createRun(name) {
   }
 
   async function finish() {
-    if (results.some((r) => !r.ok)) console.log(`--- tauri-driver log (tail) ---\n${driverTail()}\n---`);
+    if (results.some((r) => !r.ok)) console.log(`--- WebDriver log (tail) ---\n${driverTail()}\n---`);
     driver.kill();
     const failed = results.filter((r) => !r.ok).length;
     const passed = results.filter((r) => r.ok && !r.info).length;
