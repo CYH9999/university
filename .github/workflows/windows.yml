@@ -215,3 +215,4 @@ jobs:
             e2e/.tmp/*/driver.log
             msi-install.log
           if-no-files-found: ignore
+          include-hidden-files: true # e2e/.tmp is a dot-folder
