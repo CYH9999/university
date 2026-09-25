@@ -6,7 +6,7 @@
 //   NATIVE_DRIVER     path of msedgedriver.exe (Windows) or WebKitWebDriver (Linux), if not on PATH
 //   E2E_RESET_APPDATA "1" to delete the app's own config folder (workspace pointer) before starting —
 //                     only for disposable machines such as CI runners.
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync, existsSync, readFileSync, readdirSync, openSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { homedir } from "node:os";
@@ -160,26 +160,63 @@ export function createRun(name) {
     await exec("window.__UNIVERSITY_E2E_DIALOGS__ = { open: arguments[0], save: arguments[1] }; return true;", [open, save]);
   }
 
+  // Windows fallback ("attach mode"): the test starts the app itself with WebView2 remote debugging
+  // enabled and msedgedriver attaches to it (documented WebView2 automation mode).
+  let attachMode = edgeDirect && process.env.E2E_ATTACH === "1";
+  let appProc = null;
+  async function launchForAttach() {
+    const port = 9222;
+    appProc = spawn(app, [], { env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}` }, stdio: "ignore" });
+    const end = Date.now() + 90000;
+    while (Date.now() < end) {
+      try {
+        const r = await fetch(`http://127.0.0.1:${port}/json/version`, { signal: AbortSignal.timeout(2000) });
+        if (r.ok) return `127.0.0.1:${port}`;
+      } catch {
+        /* not up yet */
+      }
+      if (appProc.exitCode !== null) throw new Error(`the app exited with code ${appProc.exitCode}`);
+      await sleep(500);
+    }
+    throw new Error("the WebView2 remote debugging port did not open");
+  }
+  async function closeApp() {
+    if (!appProc || appProc.exitCode !== null) return;
+    // Ask the window to close (lets the app flush), then force it after a grace period.
+    spawnSync("taskkill", ["/PID", String(appProc.pid)], { stdio: "ignore" });
+    for (let i = 0; i < 20 && appProc.exitCode === null; i++) await sleep(500);
+    if (appProc.exitCode === null) spawnSync("taskkill", ["/PID", String(appProc.pid), "/T", "/F"], { stdio: "ignore" });
+    appProc = null;
+  }
+
   async function startSession() {
-    const end = Date.now() + 180000;
+    const end = Date.now() + (attachMode || !edgeDirect ? 180000 : 90000);
     let last = null;
     while (Date.now() < end) {
       try {
-        const v = await req("POST", "/session", { capabilities });
+        const caps = attachMode ? { alwaysMatch: { browserName: "webview2", "ms:edgeOptions": { debuggerAddress: await launchForAttach() } } } : capabilities;
+        const v = await req("POST", "/session", { capabilities: caps });
         sid = v.sessionId;
-        log("session started");
+        log(`session started${attachMode ? " (attach mode)" : ""}`);
         return;
       } catch (e) {
         last = e;
+        if (attachMode) await closeApp();
         await sleep(1000);
       }
     }
     console.log(`--- WebDriver log (tail) ---\n${driverTail()}\n---`);
+    if (edgeDirect && !attachMode) {
+      log(`launch mode failed (${last?.message ?? "timeout"}); switching to attach mode`);
+      attachMode = true;
+      return startSession();
+    }
     throw new Error(`could not start WebDriver session: ${last?.message ?? "timeout"}`);
   }
   async function endSession() {
     if (sid) await req("DELETE", s("")).catch(() => {});
     sid = null;
+    if (attachMode) await closeApp();
     // Give the app time to exit and release file handles (Windows locks open files).
     await sleep(isWindows ? 4000 : 1500);
   }
@@ -226,6 +263,7 @@ export function createRun(name) {
 
   async function finish() {
     if (results.some((r) => !r.ok)) console.log(`--- WebDriver log (tail) ---\n${driverTail()}\n---`);
+    await closeApp();
     driver.kill();
     const failed = results.filter((r) => !r.ok).length;
     const passed = results.filter((r) => r.ok && !r.info).length;
