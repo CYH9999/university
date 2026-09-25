@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { createRun, app, isWindows, sleep } from "./lib.mjs";
 
 const t = createRun("data");
-const { exec, find, click, clickText, type, keys, shot, waitFor, waitText, hasText, go, invoke, stubDialogs, startSession, endSession, check, note, scan } = t;
+const { exec, find, click, clickText, type, keys, shot, waitFor, waitText, hasText, go, invoke, stubDialogs, startSession, endSession, check, note, scan, log } = t;
 const ENTER = "\uE007";
 
 // A workspace path with Arabic characters and spaces exercises Unicode path handling.
@@ -85,6 +85,7 @@ async function assertAllData(stage) {
 
 try {
   // --- First launch and onboarding (switching to English on the language step) ------------------
+  log("First launch and onboarding (switching to English on the language step)");
   await startSession();
   await waitFor("return !!document.querySelector('[data-testid=onboarding-next]')", "welcome", 60000);
   await click("[data-testid=onboarding-next]");
@@ -104,6 +105,7 @@ try {
   await waitText("Dashboard");
 
   // --- Subject + folder --------------------------------------------------------------------------
+  log("Subject + folder");
   await go("#/subjects?new=1");
   await type("#f-name", "Computer Networks");
   await type("#f-code", "NET301");
@@ -114,6 +116,7 @@ try {
   const subjectHref = (await exec("const a=[...document.querySelectorAll('a[href*=\"#/subjects/\"]')][0];return a?a.getAttribute('href'):''")).replace(/^#/, "");
 
   // --- Lecture PDF upload into the subject (native dialog answered by the test) -----------------
+  log("Lecture PDF upload into the subject (native dialog answered by the test)");
   await go(`#${subjectHref}/files`);
   await stubDialogs({ open: [[lecturePdf]] });
   await click("[data-testid=subject-upload]");
@@ -123,6 +126,7 @@ try {
   await shot("subject-files");
 
   // --- Grade ---------------------------------------------------------------------------------------
+  log("Grade");
   await go(`#${subjectHref}/grades`);
   await click("[data-testid=grade-add]");
   await sleep(800);
@@ -131,6 +135,7 @@ try {
   check("grade item created with a score", (await count("SELECT COUNT(*) AS n FROM grade_items WHERE score = 18")) === 1);
 
   // --- Note (rich editor, autosave) ------------------------------------------------------------
+  log("Note (rich editor, autosave)");
   await go("#/notes?new=1", 1500);
   await type("[data-testid=note-title]", "Routing Protocols");
   await click(".ProseMirror");
@@ -139,6 +144,7 @@ try {
   check("note saved with its content", (await count("SELECT COUNT(*) AS n FROM notes WHERE title = ? AND content_text LIKE ?", ["Routing Protocols", "%Dijkstra%"])) === 1);
 
   // --- Task, exam, project ---------------------------------------------------------------------
+  log("Task, exam, project");
   await go("#/tasks?new=1");
   await type("#f-title", "Finish routing lab report");
   await click("[data-testid=drawer-save]");
@@ -159,6 +165,7 @@ try {
   check("project created with its folder", existsSync(join(ws, "Projects", "Campus Network Design")));
 
   // --- Research library file ------------------------------------------------------------------
+  log("Research library file");
   await go("#/research");
   await stubDialogs({ open: [[researchPdf]] });
   await click("[data-testid=research-import]");
@@ -166,6 +173,7 @@ try {
   check("research PDF imported into the Research Library", readdirSync(join(ws, "Research Library"), { recursive: true }).some((f) => String(f).endsWith("RFC 2328 OSPF.pdf")));
 
   // --- File operations (the commands behind the Files page) -------------------------------------
+  log("File operations (the commands behind the Files page)");
   const r1 = await invoke("fs_create_dir", { parentRel: "Attachments", name: "E2E Folder" });
   const r2 = await invoke("fs_write_text", { rel: "Attachments/E2E Folder/draft.txt", content: "مسودة draft" });
   const r3 = await invoke("fs_rename", { rel: "Attachments/E2E Folder/draft.txt", newName: "final.txt" });
@@ -182,6 +190,7 @@ try {
   check("delete to trash, restore and delete permanently", inTrash && back && !deleted.err && !existsSync(join(ws, ...String(trashed2.ok).split("/"))), JSON.stringify({ trashed, restoredFile, deleted }));
 
   // --- Security boundaries on the real file system ----------------------------------------------
+  log("Security boundaries on the real file system");
   const outsideAbs = isWindows ? "C:/Windows/Temp/university-e2e.txt" : "/tmp/university-e2e.txt";
   const escapes = [
     await invoke("fs_read_text", { rel: "../../outside.txt" }),
@@ -195,6 +204,7 @@ try {
   check("paths outside the workspace and ATTACH are rejected", blockedAll, JSON.stringify([...escapes, absWrite]));
 
   // --- Opening files ----------------------------------------------------------------------------
+  log("Opening files");
   await invoke("fs_write_text", { rel: "Attachments/E2E Folder/run.bat", content: "@echo off" });
   const blockedOpen = await invoke("fs_open", { rel: "Attachments/E2E Folder/run.bat" });
   check("executables are never launched from the app", !!blockedOpen.err && blockedOpen.err.includes("open.blocked"), blockedOpen.err);
@@ -203,6 +213,7 @@ try {
   else note("PDF open with the default application (Linux)", opened.err ? `not available here: ${opened.err}` : "ok");
 
   // --- Desktop notifications in both languages -------------------------------------------------
+  log("Desktop notifications in both languages");
   await go("#/settings?tab=notifications");
   await click("[data-testid=notify-test]");
   await waitFor("return document.body.innerText.includes('Test notification sent') || document.body.innerText.includes('The notification could not be shown')", "notification result (English)");
@@ -217,6 +228,7 @@ try {
   await shot("ar-notifications");
 
   // --- Backup ------------------------------------------------------------------------------------
+  log("Backup");
   await go("#/backup");
   await click("[data-testid=backup-create-full]");
   await waitFor("return document.querySelectorAll('table tbody tr').length > 0", "backup in list", 60000);
@@ -235,6 +247,7 @@ try {
   await endSession();
 
   // --- Full restart: everything must still be there ---------------------------------------------
+  log("Full restart: everything must still be there");
   await startSession();
   await waitFor("return document.body.innerText.includes('لوحة التحكم')", "dashboard after restart", 60000);
   await assertAllData("after restart");
@@ -252,6 +265,7 @@ try {
   check("Arabic UI restored after restart", persisted.lang === "ar" && persisted.dir === "rtl", `${persisted.lang}/${persisted.dir}`);
 
   // --- Restore into the current workspace --------------------------------------------------------
+  log("Restore into the current workspace");
   await invoke("db_execute", { sql: "DELETE FROM tasks WHERE title = ?", params: ["Finish routing lab report"] });
   check("task removed before restore", (await count("SELECT COUNT(*) AS n FROM tasks WHERE title = ?", ["Finish routing lab report"])) === 0);
   const rest = await invoke("backup_restore_current", { path: bk.path });
@@ -262,6 +276,7 @@ try {
   check("replaced data kept in the workspace Trash", readdirSync(join(ws, "Trash")).some((d) => d.startsWith("pre-restore-")));
 
   // --- Restore as a new workspace (e.g. on another computer) ------------------------------------
+  log("Restore as a new workspace (e.g. on another computer)");
   const asNew = await invoke("backup_restore_new", { path: bk.path, target: restored });
   check("restore as a new workspace succeeds", !asNew.err && asNew.ok?.status === "ok", asNew.err ?? asNew.ok?.status);
   await exec("location.reload()");

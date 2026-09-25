@@ -103,12 +103,14 @@ jobs:
           "TAURI_DRIVER=$env:USERPROFILE\.cargo\bin\tauri-driver.exe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: "E2E: onboarding, all pages in Arabic and English, restart, recovery"
+        timeout-minutes: 30
         env:
           E2E_RESET_APPDATA: "1"
         run: node e2e/smoke.mjs
 
       - name: "E2E: files, PDFs, persistence, notifications, backup and restore"
         if: always()
+        timeout-minutes: 30
         env:
           E2E_RESET_APPDATA: "1"
         run: node e2e/data.mjs
@@ -156,5 +158,6 @@ jobs:
           path: |
             e2e/.tmp/*/shots/*.png
             e2e/.tmp/*/results.json
+            e2e/.tmp/*/driver.log
             msi-install.log
           if-no-files-found: ignore

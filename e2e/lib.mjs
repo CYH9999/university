@@ -7,7 +7,7 @@
 //   E2E_RESET_APPDATA "1" to delete the app's own config folder (workspace pointer) before starting —
 //                     only for disposable machines such as CI runners.
 import { spawn } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync, existsSync, readFileSync, readdirSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync, existsSync, readFileSync, readdirSync, openSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { homedir } from "node:os";
 
@@ -50,14 +50,24 @@ export function createRun(name) {
   const driverArgs = process.env.NATIVE_DRIVER ? ["--native-driver", process.env.NATIVE_DRIVER] : [];
   // On Linux the app's config is isolated in a throwaway HOME; Windows uses %APPDATA% (see E2E_RESET_APPDATA).
   const env = isWindows ? { ...process.env } : { ...process.env, HOME: home, XDG_CONFIG_HOME: join(home, ".config"), XDG_DATA_HOME: join(home, ".local/share") };
-  const driver = spawn(driverPath, driverArgs, { env, stdio: "ignore" });
+  const driverLog = join(tmp, "driver.log");
+  const logFd = openSync(driverLog, "a");
+  const driver = spawn(driverPath, driverArgs, { env, stdio: ["ignore", logFd, logFd] });
+  const driverTail = () => {
+    try {
+      return readFileSync(driverLog, "utf8").split(/\r?\n/).slice(-40).join("\n");
+    } catch {
+      return "";
+    }
+  };
 
   const W = "http://127.0.0.1:4444";
   let sid = null;
   const results = [];
 
   async function req(method, path, body) {
-    const r = await fetch(W + path, { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+    // Every WebDriver call is bounded, so a stuck driver fails the run instead of hanging it.
+    const r = await fetch(W + path, { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(120000) });
     const j = await r.json();
     if (j.value && j.value.error) throw new Error(`${path}: ${j.value.error} ${j.value.message}`);
     return j.value;
@@ -140,16 +150,21 @@ export function createRun(name) {
   }
 
   async function startSession() {
-    for (let i = 0; i < 60; i++) {
+    const end = Date.now() + 180000;
+    let last = null;
+    while (Date.now() < end) {
       try {
         const v = await req("POST", "/session", { capabilities: { alwaysMatch: { "tauri:options": { application: app }, browserName: "wry" } } });
         sid = v.sessionId;
+        log("session started");
         return;
-      } catch {
-        await sleep(500);
+      } catch (e) {
+        last = e;
+        await sleep(1000);
       }
     }
-    throw new Error("could not start WebDriver session");
+    console.log(`--- tauri-driver log (tail) ---\n${driverTail()}\n---`);
+    throw new Error(`could not start WebDriver session: ${last?.message ?? "timeout"}`);
   }
   async function endSession() {
     if (sid) await req("DELETE", s("")).catch(() => {});
@@ -157,13 +172,18 @@ export function createRun(name) {
     // Give the app time to exit and release file handles (Windows locks open files).
     await sleep(isWindows ? 4000 : 1500);
   }
+  const started = Date.now();
+  const stamp = () => `[${((Date.now() - started) / 1000).toFixed(0).padStart(4)}s]`;
+  function log(msg) {
+    console.log(`${stamp()} ${msg}`);
+  }
   function check(label, ok, detail = "") {
     results.push({ name: label, ok, detail });
-    console.log(`${ok ? "PASS" : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
+    console.log(`${stamp()} ${ok ? "PASS" : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
   }
   function note(label, detail = "") {
     results.push({ name: label, ok: true, info: true, detail });
-    console.log(`INFO  ${label}${detail ? ` — ${detail}` : ""}`);
+    console.log(`${stamp()} INFO  ${label}${detail ? ` — ${detail}` : ""}`);
   }
 
   /** Raw translation keys visible on screen (text, placeholders, tooltips, aria labels) + keys reported missing. */
@@ -194,6 +214,7 @@ export function createRun(name) {
   }
 
   async function finish() {
+    if (results.some((r) => !r.ok)) console.log(`--- tauri-driver log (tail) ---\n${driverTail()}\n---`);
     driver.kill();
     const failed = results.filter((r) => !r.ok).length;
     const passed = results.filter((r) => r.ok && !r.info).length;
@@ -204,7 +225,7 @@ export function createRun(name) {
 
   return {
     tmp, shots, results, req, exec, execAsync, find, click, clickText, type, keys, shot, waitFor, waitText, hasText, go, invoke, stubDialogs, retryFs,
-    startSession, endSession, check, note, scan, finish,
+    startSession, endSession, check, note, log, scan, finish,
     get sid() {
       return sid;
     },

@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { createRun, app, sleep } from "./lib.mjs";
 
 const t = createRun("smoke");
-const { exec, find, click, type, shot, waitFor, startSession, endSession, check, scan, retryFs } = t;
+const { exec, find, click, type, shot, waitFor, startSession, endSession, check, scan, retryFs, log } = t;
 const ws = join(t.tmp, "Workspace");
 console.log(`app: ${app}`);
 
@@ -47,6 +47,7 @@ async function sweep(lang) {
 
 try {
   // 1. First launch (Arabic by default): onboarding must require a workspace.
+  log("1. First launch (Arabic by default): onboarding must require a workspace.");
   await startSession();
   await waitFor("return !!document.querySelector('#root') && document.body.innerText.length > 0", "app render", 60000);
   await shot("ar-01-welcome");
@@ -93,6 +94,7 @@ try {
   check("dashboard opens after onboarding (Arabic)", await exec("return document.body.innerText.includes('لوحة التحكم') && document.documentElement.dir === 'rtl'"));
 
   // 2. Create a subject through the UI.
+  log("2. Create a subject through the UI.");
   await exec("location.hash = '#/subjects?new=1'");
   await find("#f-name");
   await type("#f-name", "Computer Security");
@@ -105,12 +107,14 @@ try {
   if (subjectHref) ROUTES.push(subjectHref.replace(/^#/, ""), `${subjectHref.replace(/^#/, "")}/attendance`, `${subjectHref.replace(/^#/, "")}/grades`);
 
   // 3. Every page in Arabic: no crashes, no raw keys, no missing translations.
+  log("3. Every page in Arabic: no crashes, no raw keys, no missing translations.");
   const ar = await sweep("ar");
   check("all routes render without crashing (Arabic)", ar.crashed.length === 0, ar.crashed.join(", "));
   check("no raw translation keys on any page (Arabic)", Object.keys(ar.raw).length === 0, JSON.stringify(ar.raw));
   check("no missing translations reported (Arabic)", ar.missing.length === 0, ar.missing.join(", "));
 
   // 4. Switch to English with the top-bar toggle: immediate, left-to-right.
+  log("4. Switch to English with the top-bar toggle: immediate, left-to-right.");
   await exec("location.hash = '#/'");
   await sleep(600);
   await click("[data-testid=lang-toggle]");
@@ -128,6 +132,7 @@ try {
   await endSession();
 
   // 5. Restart: data and language persist, the workspace reopens automatically.
+  log("5. Restart: data and language persist, the workspace reopens automatically.");
   await startSession();
   await waitFor("return document.body.innerText.includes('Dashboard')", "dashboard after restart", 60000);
   const afterRestart = await scan();
@@ -143,6 +148,7 @@ try {
   await endSession();
 
   // 6. Missing workspace: must block usage and show the recovery screen (in the saved language).
+  log("6. Missing workspace: must block usage and show the recovery screen (in the saved language).");
   await retryFs(() => renameSync(ws, `${ws}-moved`));
   await startSession();
   await find("[data-testid=recovery-path]", 60000);
